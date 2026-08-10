@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import { init, createReminder, listReminders, getReminderById, updateReminder, deleteReminder } from './db/index.js';
 import { parseReminderText } from './parser.js';
+import { parseWithLLM } from './llmParser.js';
 import { startScheduler } from './scheduler.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -25,7 +26,24 @@ app.post('/api/reminders', async (req, res) => {
     return res.status(400).json({ error: 'Faltan campos: text es obligatorio y no hay OWNER_CHAT_ID configurado' });
   }
 
-  const { task, dueAt, notifyAt, leadMinutes, recurrence, matchedText } = parseReminderText(text);
+  let parsed = null;
+  let usedLLM = false;
+
+  if (process.env.GROQ_API_KEY) {
+    try {
+      parsed = await parseWithLLM(text);
+      usedLLM = true;
+    } catch (err) {
+      console.warn('Groq no disponible, usando parser de reglas:', err.message);
+    }
+  }
+
+  if (!parsed || !parsed.dueAt) {
+    parsed = parseReminderText(text);
+    usedLLM = false;
+  }
+
+  const { task, dueAt, notifyAt, leadMinutes, recurrence, matchedText } = parsed;
 
   if (!dueAt) {
     return res.status(422).json({
@@ -43,7 +61,7 @@ app.post('/api/reminders', async (req, res) => {
     chatId,
   });
 
-  res.status(201).json({ reminder, interpretedAs: matchedText, leadMinutes });
+  res.status(201).json({ reminder, interpretedAs: matchedText, leadMinutes, usedLLM });
 });
 
 app.get('/api/reminders', async (req, res) => {
