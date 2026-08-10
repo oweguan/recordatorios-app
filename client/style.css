@@ -461,3 +461,10 @@ body {
   max-width: none;
   margin-top: 0;
 }
+
+.settings-hint {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin: 0 0 12px;
+  line-height: 1.4;
+}

@@ -61,12 +61,22 @@
 
     <section class="settings-section">
       <h2>Google</h2>
+      <p class="settings-hint">
+        Conecta tu cuenta para sincronizar automáticamente tus recordatorios con
+        <strong>Google Calendar</strong> y hacer copias de seguridad en <strong>Google Drive</strong>.
+      </p>
       <div class="settings-row">
         <span id="googleStatusLabel">No conectado</span>
         <button id="googleToggle" class="icon-button" aria-label="Conectar con Google" title="Conectar con Google">☁️</button>
       </div>
 
       <div id="googlePanel" class="google-panel" hidden>
+        <h3>Google Calendar</h3>
+        <p class="settings-hint">Cada recordatorio nuevo se añade solo. Si tenías recordatorios de antes de conectar, sincronízalos aquí:</p>
+        <div class="google-actions">
+          <button id="syncCalendarBtn">Sincronizar recordatorios existentes</button>
+        </div>
+
         <h3>Copias de seguridad en Drive</h3>
         <div class="google-actions">
           <button id="backupNowBtn">Backup ahora</button>

@@ -61,6 +61,23 @@ async function syncDeleteFromCalendar(reminder) {
   }
 }
 
+async function syncAllPendingToCalendar() {
+  const all = await listReminders();
+  const pendingWithoutEvent = all.filter((r) => r.status === 'pending' && !r.google_event_id);
+
+  let synced = 0;
+  for (const reminder of pendingWithoutEvent) {
+    try {
+      const eventId = await createCalendarEvent(reminder);
+      await updateReminderGoogleEventId(reminder.id, eventId);
+      synced++;
+    } catch (err) {
+      console.warn(`No se pudo sincronizar el recordatorio #${reminder.id}:`, err.message);
+    }
+  }
+  return synced;
+}
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(__dirname, '..', '..', 'client');
 
@@ -241,10 +258,23 @@ app.get('/api/google/auth', (req, res) => {
 app.get('/api/google/callback', async (req, res) => {
   try {
     await handleOAuthCallback(req.query.code);
+    syncAllPendingToCalendar().catch((err) =>
+      console.warn('Error sincronizando recordatorios existentes con Calendar:', err.message)
+    );
     res.redirect('/?google=connected');
   } catch (err) {
     console.error('Error en callback de Google:', err.message);
     res.redirect('/?google=error');
+  }
+});
+
+app.post('/api/google/sync-calendar', async (req, res) => {
+  try {
+    const synced = await syncAllPendingToCalendar();
+    res.json({ synced });
+  } catch (err) {
+    console.error('Error sincronizando con Calendar:', err.message);
+    res.status(502).json({ error: 'No se pudo sincronizar con Calendar' });
   }
 });
 

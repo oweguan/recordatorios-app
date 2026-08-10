@@ -50,6 +50,22 @@ const googleStatusLabel = document.getElementById('googleStatusLabel');
 const backupNowBtn = document.getElementById('backupNowBtn');
 const googleDisconnectBtn = document.getElementById('googleDisconnectBtn');
 const backupsList = document.getElementById('backupsList');
+const syncCalendarBtn = document.getElementById('syncCalendarBtn');
+
+syncCalendarBtn.addEventListener('click', async () => {
+  syncCalendarBtn.disabled = true;
+  syncCalendarBtn.textContent = 'Sincronizando...';
+  try {
+    const res = await fetch('/api/google/sync-calendar', { method: 'POST' });
+    const data = await res.json();
+    alert(`Sincronizados ${data.synced ?? 0} recordatorios con Google Calendar.`);
+  } catch (err) {
+    alert('Error al sincronizar con Calendar.');
+  } finally {
+    syncCalendarBtn.disabled = false;
+    syncCalendarBtn.textContent = 'Sincronizar recordatorios existentes';
+  }
+});
 
 async function refreshGoogleState() {
   try {
