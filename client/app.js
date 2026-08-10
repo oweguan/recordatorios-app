@@ -1,16 +1,40 @@
+const ICONS = {
+  settings: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="14" cy="6" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="8" cy="12" r="2" fill="currentColor" stroke="none"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="16" cy="18" r="2" fill="currentColor" stroke="none"/></svg>',
+  moon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>',
+  sun: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>',
+  bell: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>',
+  cloud: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>',
+  mic: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="11" rx="3"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>',
+  stop: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><rect x="6" y="6" width="12" height="12" rx="2"/></svg>',
+  volume: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>',
+  edit: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>',
+  trash: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>',
+  clock: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>',
+  repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
+  arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
+  check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+};
+
 const micBtn = document.getElementById('micBtn');
 const statusEl = document.getElementById('status');
 const transcriptEl = document.getElementById('transcript');
 const textForm = document.getElementById('textForm');
 const textInput = document.getElementById('textInput');
 const remindersList = document.getElementById('remindersList');
-const waveformEl = document.getElementById('waveform');
 const themeToggle = document.getElementById('themeToggle');
+const todayCountEl = document.getElementById('todayCount');
 
 const mainView = document.getElementById('mainView');
 const settingsView = document.getElementById('settingsView');
 const settingsToggle = document.getElementById('settingsToggle');
 const settingsBack = document.getElementById('settingsBack');
+
+settingsToggle.innerHTML = ICONS.settings;
+settingsBack.innerHTML = ICONS.arrowLeft;
+micBtn.innerHTML = ICONS.mic;
+document.getElementById('readTodayBtn').innerHTML = ICONS.volume;
+document.getElementById('pushToggle').innerHTML = ICONS.bell;
+document.getElementById('googleToggle').innerHTML = ICONS.cloud;
 
 function showSettings() {
   mainView.hidden = true;
@@ -27,7 +51,7 @@ settingsBack.addEventListener('click', showMain);
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
-  themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+  themeToggle.innerHTML = theme === 'light' ? ICONS.moon : ICONS.sun;
 }
 
 const savedTheme = localStorage.getItem('theme');
@@ -260,7 +284,7 @@ let recording = false;
 const canRecord = Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
 
 if (!canRecord) {
-  statusEl.textContent = 'Tu navegador no soporta grabación de audio. Usa el texto de abajo.';
+  statusEl.textContent = 'Tu navegador no soporta grabación de audio. Usa el texto.';
   micBtn.disabled = true;
 }
 
@@ -282,7 +306,7 @@ async function startRecording() {
   mediaRecorder.start();
   recording = true;
   micBtn.classList.add('listening');
-  waveformEl.classList.add('active');
+  micBtn.innerHTML = ICONS.stop;
   statusEl.textContent = 'Escuchando...';
   transcriptEl.textContent = '';
 }
@@ -292,7 +316,7 @@ function stopRecording() {
   mediaRecorder.stop();
   recording = false;
   micBtn.classList.remove('listening');
-  waveformEl.classList.remove('active');
+  micBtn.innerHTML = ICONS.mic;
   statusEl.textContent = 'Transcribiendo...';
 }
 
@@ -352,7 +376,7 @@ async function submitReminder(text) {
 
     const leadNote = data.leadMinutes > 0 ? ` — aviso ${data.leadMinutes} min antes` : '';
     const recurrenceNote = RECURRENCE_LABEL[data.reminder.recurrence] ? ` — ${RECURRENCE_LABEL[data.reminder.recurrence]}` : '';
-    statusEl.textContent = `Guardado: "${data.reminder.task}" — entendido como "${data.interpretedAs}"${leadNote}${recurrenceNote}`;
+    statusEl.textContent = `Guardado: "${data.reminder.task}"${leadNote}${recurrenceNote}`;
     transcriptEl.textContent = '';
     loadReminders();
   } catch (err) {
@@ -363,12 +387,7 @@ async function submitReminder(text) {
 const editingIds = new Set();
 
 function formatDue(iso) {
-  return new Date(iso).toLocaleString('es-ES', {
-    day: '2-digit',
-    month: '2-digit',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
+  return new Date(iso).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
 }
 
 function toDatetimeLocalValue(iso) {
@@ -377,36 +396,39 @@ function toDatetimeLocalValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const RECURRENCE_LABEL = { daily: '🔁 cada día', weekly: '🔁 cada semana', monthly: '🔁 cada mes' };
+const RECURRENCE_LABEL = { daily: 'cada día', weekly: 'cada semana', monthly: 'cada mes' };
 
 function renderReminderView(r) {
-  const recurrenceBadge = RECURRENCE_LABEL[r.recurrence] ? `<span class="badge">${RECURRENCE_LABEL[r.recurrence]}</span>` : '';
+  const recurrence = RECURRENCE_LABEL[r.recurrence]
+    ? `<span class="recurrence">${ICONS.repeat}${RECURRENCE_LABEL[r.recurrence]}</span>`
+    : '';
+
   return `
-    <div class="reminder-item" data-id="${r.id}">
-      <div class="reminder-main">
-        <span class="task">${escapeHtml(r.task)}${recurrenceBadge}</span>
-        <span class="due">${formatDue(r.due_at)}</span>
+    <div class="reminder-row" data-id="${r.id}">
+      <button class="check-circle" data-action="complete" aria-label="Completar">${ICONS.check}</button>
+      <div class="reminder-info">
+        <span class="task-text">${escapeHtml(r.task)}</span>
+        <span class="task-meta">${ICONS.clock}${formatDue(r.due_at)}${recurrence}</span>
       </div>
-      <div class="reminder-actions">
-        <button data-action="postpone" data-minutes="15" title="Posponer 15 min">+15m</button>
-        <button data-action="postpone" data-minutes="60" title="Posponer 1 hora">+1h</button>
-        <button data-action="postpone" data-minutes="1440" title="Posponer 1 día">+1d</button>
-        <button data-action="edit" title="Editar">✏️</button>
-        <button data-action="delete" title="Cancelar recordatorio">🗑️</button>
+      <div class="reminder-quick-actions">
+        <button class="pill" data-action="postpone" data-minutes="60" title="Posponer 1 hora">+1h</button>
+        <button class="pill" data-action="postpone" data-minutes="1440" title="Posponer 1 día">+1d</button>
+        <button data-action="edit" title="Editar" aria-label="Editar">${ICONS.edit}</button>
+        <button data-action="delete" title="Cancelar recordatorio" aria-label="Cancelar">${ICONS.trash}</button>
       </div>
     </div>`;
 }
 
 function renderReminderEdit(r) {
   return `
-    <div class="reminder-item editing" data-id="${r.id}">
+    <div class="reminder-edit-row" data-id="${r.id}">
       <div class="reminder-edit-form">
         <input type="text" class="edit-task" value="${escapeHtml(r.task)}" />
         <input type="datetime-local" class="edit-due" value="${toDatetimeLocalValue(r.due_at)}" />
-      </div>
-      <div class="reminder-actions">
-        <button data-action="save-edit">Guardar</button>
-        <button data-action="cancel-edit">Cancelar</button>
+        <div class="reminder-edit-actions">
+          <button data-action="save-edit">Guardar</button>
+          <button data-action="cancel-edit">Cancelar</button>
+        </div>
       </div>
     </div>`;
 }
@@ -444,6 +466,9 @@ async function loadReminders() {
     const reminders = await res.json();
     const pending = reminders.filter((r) => r.status === 'pending');
     latestPendingReminders = pending;
+
+    const todayCount = pending.filter((r) => dayBucket(r.due_at) === 'Hoy').length;
+    todayCountEl.textContent = todayCount > 0 ? `${todayCount} tarea${todayCount === 1 ? '' : 's'} para hoy` : 'Sin tareas para hoy';
 
     if (pending.length === 0) {
       remindersList.innerHTML = '<div class="empty">No tienes recordatorios pendientes 🎉</div>';
@@ -492,11 +517,17 @@ remindersList.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
   if (!button) return;
 
-  const item = button.closest('.reminder-item');
+  const item = button.closest('.reminder-row, .reminder-edit-row');
   const id = Number(item.dataset.id);
   const action = button.dataset.action;
 
-  if (action === 'edit') {
+  if (action === 'complete') {
+    item.classList.add('completing');
+    setTimeout(async () => {
+      await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+      loadReminders();
+    }, 320);
+  } else if (action === 'edit') {
     editingIds.add(id);
     loadReminders();
   } else if (action === 'cancel-edit') {

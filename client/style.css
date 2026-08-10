@@ -5,37 +5,37 @@
   --border: #2c2c3a;
   --btn: #26263a;
   --btn-hover: #32324a;
-  --accent: #4f46e5;
-  --accent-active: #ef4444;
+  --accent: #db4c3f;
+  --accent-hover: #c8402f;
   --text: #f1f1f5;
   --text-dim: #9494a8;
   color-scheme: dark;
 }
 
 :root[data-theme="light"] {
-  --bg: #f4f4f8;
+  --bg: #fafafa;
   --card: #ffffff;
-  --card-alt: #f0f0f5;
-  --border: #e0e0ea;
-  --btn: #ececf4;
-  --btn-hover: #dedeeb;
-  --accent: #4f46e5;
-  --accent-active: #ef4444;
-  --text: #1a1a24;
-  --text-dim: #6b6b7d;
+  --card-alt: #f5f5f5;
+  --border: #e6e6e6;
+  --btn: #f0f0f0;
+  --btn-hover: #e4e4e4;
+  --accent: #db4c3f;
+  --accent-hover: #c8402f;
+  --text: #202020;
+  --text-dim: #7a7a7a;
   color-scheme: light;
 }
 
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --bg: #f4f4f8;
+    --bg: #fafafa;
     --card: #ffffff;
-    --card-alt: #f0f0f5;
-    --border: #e0e0ea;
-    --btn: #ececf4;
-    --btn-hover: #dedeeb;
-    --text: #1a1a24;
-    --text-dim: #6b6b7d;
+    --card-alt: #f5f5f5;
+    --border: #e6e6e6;
+    --btn: #f0f0f0;
+    --btn-hover: #e4e4e4;
+    --text: #202020;
+    --text-dim: #7a7a7a;
     color-scheme: light;
   }
 }
@@ -53,7 +53,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 20px 16px 48px;
+  padding: 20px 16px 56px;
   transition: background 0.2s, color 0.2s;
 }
 
@@ -65,51 +65,73 @@ body {
   width: 100%;
 }
 
-.settings-view .app-header {
-  justify-content: flex-start;
-  gap: 12px;
-}
+/* ---------- Header ---------- */
 
 .app-header {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   display: flex;
   align-items: center;
   justify-content: space-between;
   margin-bottom: 20px;
+  gap: 12px;
+}
+
+.settings-view .app-header {
+  justify-content: flex-start;
+}
+
+.header-titles h1 {
+  font-size: 1.35rem;
+  margin: 0;
+  font-weight: 700;
+  letter-spacing: -0.01em;
 }
 
 .app-header h1 {
-  font-size: 1.3rem;
+  font-size: 1.25rem;
   margin: 0;
+  font-weight: 700;
 }
 
-.header-actions {
-  display: flex;
-  gap: 8px;
+.subtitle {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: var(--text-dim);
 }
+
+/* ---------- Icon buttons ---------- */
 
 .icon-button {
-  width: 40px;
-  height: 40px;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: 1px solid var(--border);
   background: var(--card);
-  font-size: 1.1rem;
+  color: var(--text-dim);
   cursor: pointer;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background 0.15s, color 0.15s, opacity 0.15s;
+  padding: 0;
+}
+
+.icon-button svg {
+  width: 18px;
+  height: 18px;
 }
 
 .icon-button:hover {
   background: var(--btn-hover);
+  color: var(--text);
 }
 
 .icon-button.active {
   background: var(--accent);
   border-color: var(--accent);
+  color: white;
 }
 
 .icon-button:disabled {
@@ -117,240 +139,288 @@ body {
   cursor: default;
 }
 
-.voice-card {
-  width: 100%;
-  max-width: 420px;
-  background: var(--card);
+.icon-button-sm {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
   border: 1px solid var(--border);
-  border-radius: 20px;
-  padding: 28px 20px;
+  background: var(--card);
+  color: var(--text-dim);
+  cursor: pointer;
   display: flex;
-  flex-direction: column;
   align-items: center;
-  transition: background 0.2s, border-color 0.2s;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
 }
 
-.mic-button {
-  width: 120px;
-  height: 120px;
+.icon-button-sm svg {
+  width: 15px;
+  height: 15px;
+}
+
+.icon-button-sm:hover {
+  background: var(--btn-hover);
+  color: var(--text);
+}
+
+/* ---------- Quick add ---------- */
+
+.quick-add {
+  position: relative;
+  width: 100%;
+  max-width: 460px;
+}
+
+.quick-add input {
+  width: 100%;
+  padding: 14px 50px 14px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 0.95rem;
+}
+
+.quick-add input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.mic-inline {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 38px;
+  height: 38px;
   border-radius: 50%;
   border: none;
-  background: var(--accent);
-  color: white;
-  font-size: 2.2rem;
+  background: transparent;
+  color: var(--text-dim);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  transition: transform 0.15s, background 0.15s;
-  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
+  transition: background 0.15s, color 0.15s;
 }
 
-.mic-button:active {
-  transform: scale(0.96);
+.mic-inline svg {
+  width: 18px;
+  height: 18px;
 }
 
-.mic-button.listening {
-  background: var(--accent-active);
+.mic-inline:hover {
+  background: var(--btn);
+  color: var(--text);
+}
+
+.mic-inline.listening {
+  background: var(--accent);
+  color: white;
   animation: pulse 1.2s infinite;
 }
 
 @keyframes pulse {
-  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
-  70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
-  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-}
-
-.waveform {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 4px;
-  height: 20px;
-  margin-top: 14px;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.waveform.active {
-  opacity: 1;
-}
-
-.waveform span {
-  display: block;
-  width: 4px;
-  height: 6px;
-  border-radius: 2px;
-  background: var(--accent-active);
-}
-
-.waveform.active span {
-  animation: wave 0.9s ease-in-out infinite;
-}
-
-.waveform span:nth-child(1) { animation-delay: 0s; }
-.waveform span:nth-child(2) { animation-delay: 0.1s; }
-.waveform span:nth-child(3) { animation-delay: 0.2s; }
-.waveform span:nth-child(4) { animation-delay: 0.3s; }
-.waveform span:nth-child(5) { animation-delay: 0.4s; }
-
-@keyframes wave {
-  0%, 100% { height: 6px; }
-  50% { height: 20px; }
+  0% { box-shadow: 0 0 0 0 rgba(219, 76, 63, 0.5); }
+  70% { box-shadow: 0 0 0 14px rgba(219, 76, 63, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(219, 76, 63, 0); }
 }
 
 .status {
-  margin-top: 16px;
-  min-height: 24px;
+  width: 100%;
+  max-width: 460px;
+  margin-top: 10px;
+  min-height: 18px;
   color: var(--text-dim);
+  font-size: 0.82rem;
   text-align: center;
-  font-size: 0.9rem;
 }
 
 .transcript {
-  margin-top: 4px;
-  font-size: 1.1rem;
-  text-align: center;
-  min-height: 28px;
-}
-
-.text-fallback {
   width: 100%;
-  max-width: 420px;
-  margin-top: 20px;
-  display: flex;
-  gap: 8px;
+  max-width: 460px;
+  font-size: 0.95rem;
+  text-align: center;
+  min-height: 22px;
 }
 
-.text-fallback input {
-  flex: 1;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--text);
-  font-size: 1rem;
-}
-
-.text-fallback button {
-  padding: 12px 18px;
-  border-radius: 10px;
-  border: none;
-  background: var(--accent);
-  color: white;
-  font-weight: 600;
-  cursor: pointer;
-}
+/* ---------- Reminders list ---------- */
 
 .reminders {
   width: 100%;
-  max-width: 420px;
-  margin-top: 36px;
-}
-
-.reminders h2 {
-  font-size: 1rem;
-  color: var(--text-dim);
-  font-weight: 600;
-  margin-bottom: 12px;
+  max-width: 460px;
+  margin-top: 28px;
 }
 
 .reminders-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  margin-bottom: 8px;
 }
 
+.reminders h2,
 .reminders-header h2 {
-  margin-bottom: 0;
-}
-
-.reminders-header .icon-button {
-  width: 36px;
-  height: 36px;
-  font-size: 1rem;
-  margin-bottom: 12px;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin: 0;
 }
 
 .day-group {
-  margin-bottom: 18px;
+  margin-bottom: 8px;
 }
 
 .day-label {
-  font-size: 0.8rem;
+  font-size: 0.78rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--accent);
-  margin: 0 0 8px 2px;
+  margin: 18px 0 4px 2px;
 }
 
-.reminder-item {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  padding: 14px 16px;
-  margin-bottom: 10px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  transition: background 0.2s, border-color 0.2s;
+.day-group:first-child .day-label {
+  margin-top: 10px;
 }
 
-.reminder-main {
+.reminder-row {
   display: flex;
-  justify-content: space-between;
-  align-items: baseline;
+  align-items: flex-start;
   gap: 12px;
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--border);
+  transition: opacity 0.35s, transform 0.35s;
 }
 
-.reminder-item .task {
-  font-weight: 500;
+.reminder-row:last-child {
+  border-bottom: none;
 }
 
-.badge {
-  display: inline-block;
-  margin-left: 8px;
-  font-size: 0.75rem;
-  font-weight: 400;
-  color: var(--text-dim);
-  white-space: nowrap;
+.reminder-row.completing {
+  opacity: 0;
+  transform: translateX(10px);
 }
 
-.reminder-item .due {
-  color: var(--text-dim);
-  font-size: 0.85rem;
-  white-space: nowrap;
-}
-
-.reminder-actions {
+.check-circle {
+  flex-shrink: 0;
+  width: 21px;
+  height: 21px;
+  margin-top: 2px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
   display: flex;
-  gap: 6px;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  padding: 0;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
 }
 
-.reminder-actions button {
+.check-circle svg {
+  width: 12px;
+  height: 12px;
+}
+
+.check-circle:hover {
+  border-color: var(--accent);
+}
+
+.reminder-row.completing .check-circle {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
+}
+
+.reminder-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.task-text {
+  display: block;
+  font-size: 0.95rem;
+  line-height: 1.35;
+  word-break: break-word;
+}
+
+.reminder-row.completing .task-text {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
+.task-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  font-size: 0.78rem;
+  color: var(--text-dim);
+}
+
+.task-meta svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+.task-meta .recurrence {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+}
+
+.reminder-quick-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  flex-shrink: 0;
+}
+
+.reminder-quick-actions button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background 0.15s, color 0.15s;
+}
+
+.reminder-quick-actions button svg {
+  width: 15px;
+  height: 15px;
+}
+
+.reminder-quick-actions button:hover {
   background: var(--btn);
   color: var(--text);
-  border: none;
-  border-radius: 8px;
-  padding: 6px 10px;
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.15s;
 }
 
-.reminder-actions button:hover {
-  background: var(--btn-hover);
+.reminder-quick-actions .pill {
+  width: auto;
+  padding: 0 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
 }
 
-.reminder-actions button[data-action="delete"] {
-  margin-left: auto;
-}
+/* ---------- Edit form ---------- */
 
-.reminder-actions button[data-action="save-edit"] {
-  background: var(--accent);
-  color: white;
+.reminder-edit-row {
+  padding: 12px 2px;
+  border-bottom: 1px solid var(--border);
 }
 
 .reminder-edit-form {
@@ -360,87 +430,48 @@ body {
 }
 
 .reminder-edit-form input {
-  padding: 8px 10px;
+  padding: 9px 11px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card-alt);
   color: var(--text);
-  font-size: 0.95rem;
+  font-size: 0.9rem;
+}
+
+.reminder-edit-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.reminder-edit-actions button {
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.reminder-edit-actions button[data-action="save-edit"] {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: white;
 }
 
 .empty {
   color: var(--text-dim);
   text-align: center;
-  padding: 24px 12px;
-  font-size: 0.9rem;
+  padding: 28px 12px;
+  font-size: 0.88rem;
 }
 
-.google-panel {
-  width: 100%;
-  max-width: 420px;
-  margin-top: 36px;
-}
-
-.google-panel h2 {
-  font-size: 1rem;
-  color: var(--text-dim);
-  font-weight: 600;
-  margin-bottom: 12px;
-}
-
-.google-actions {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 12px;
-}
-
-.google-actions button {
-  padding: 8px 14px;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  background: var(--btn);
-  color: var(--text);
-  font-size: 0.85rem;
-  cursor: pointer;
-  transition: background 0.15s;
-}
-
-.google-actions button:hover {
-  background: var(--btn-hover);
-}
-
-#backupNowBtn {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-}
-
-.backup-item {
-  background: var(--card);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 10px 14px;
-  margin-bottom: 8px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  font-size: 0.85rem;
-}
-
-.backup-item button {
-  background: var(--btn);
-  color: var(--text);
-  border: none;
-  border-radius: 6px;
-  padding: 5px 10px;
-  font-size: 0.8rem;
-  cursor: pointer;
-}
+/* ---------- Settings ---------- */
 
 .settings-section {
   width: 100%;
-  max-width: 420px;
+  max-width: 460px;
   background: var(--card);
   border: 1px solid var(--border);
   border-radius: 14px;
@@ -474,14 +505,64 @@ body {
   font-size: 0.95rem;
 }
 
-#googlePanel.google-panel {
-  max-width: none;
-  margin-top: 0;
-}
-
 .settings-hint {
   font-size: 0.82rem;
   color: var(--text-dim);
   margin: 0 0 12px;
   line-height: 1.4;
+}
+
+.google-panel {
+  margin-top: 0;
+}
+
+.google-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+
+.google-actions button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.google-actions button:hover {
+  background: var(--btn-hover);
+}
+
+#backupNowBtn {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.backup-item {
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.backup-item button {
+  background: var(--btn);
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
 }

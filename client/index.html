@@ -7,34 +7,30 @@
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/icons/icon-192.png" />
   <link rel="apple-touch-icon" href="/icons/icon-192.png" />
-  <meta name="theme-color" content="#4f46e5" />
+  <meta name="theme-color" content="#db4c3f" />
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
   <div id="mainView">
     <header class="app-header">
-      <h1>Mis Recordatorios</h1>
-      <button id="settingsToggle" class="icon-button" aria-label="Ajustes" title="Ajustes">⚙️</button>
+      <div class="header-titles">
+        <h1>Recordatorios</h1>
+        <p id="todayCount" class="subtitle"></p>
+      </div>
+      <button id="settingsToggle" class="icon-button" aria-label="Ajustes" title="Ajustes"></button>
     </header>
 
-    <div class="voice-card">
-      <button id="micBtn" class="mic-button" aria-label="Grabar recordatorio por voz">🎙️</button>
-      <div id="waveform" class="waveform" aria-hidden="true">
-        <span></span><span></span><span></span><span></span><span></span>
-      </div>
-      <div id="status" class="status">Pulsa el micrófono y di tu recordatorio</div>
-      <div id="transcript" class="transcript"></div>
-    </div>
-
-    <form id="textForm" class="text-fallback">
-      <input id="textInput" type="text" placeholder="O escribe: recuérdame... mañana a las 9" autocomplete="off" />
-      <button type="submit">Enviar</button>
+    <form id="textForm" class="quick-add">
+      <input id="textInput" type="text" placeholder="Añadir una tarea... p.ej. mañana a las 9" autocomplete="off" />
+      <button type="button" id="micBtn" class="mic-inline" aria-label="Grabar por voz" title="Grabar por voz"></button>
     </form>
+    <div id="status" class="status"></div>
+    <div id="transcript" class="transcript"></div>
 
     <div class="reminders">
       <div class="reminders-header">
-        <h2>Próximos recordatorios</h2>
-        <button id="readTodayBtn" class="icon-button" aria-label="Leer tareas de hoy" title="Leer tareas de hoy en voz alta">🔊</button>
+        <h2>Próximos</h2>
+        <button id="readTodayBtn" class="icon-button-sm" aria-label="Leer tareas de hoy" title="Leer tareas de hoy"></button>
       </div>
       <div id="remindersList"></div>
     </div>
@@ -42,7 +38,7 @@
 
   <div id="settingsView" class="settings-view" hidden>
     <header class="app-header">
-      <button id="settingsBack" class="icon-button" aria-label="Volver" title="Volver">←</button>
+      <button id="settingsBack" class="icon-button" aria-label="Volver" title="Volver"></button>
       <h1>Ajustes</h1>
     </header>
 
@@ -50,7 +46,7 @@
       <h2>Apariencia</h2>
       <div class="settings-row">
         <span>Tema</span>
-        <button id="themeToggle" class="icon-button" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
+        <button id="themeToggle" class="icon-button" aria-label="Cambiar tema" title="Cambiar tema"></button>
       </div>
     </section>
 
@@ -58,7 +54,7 @@
       <h2>Notificaciones</h2>
       <div class="settings-row">
         <span>Notificaciones push</span>
-        <button id="pushToggle" class="icon-button" aria-label="Activar notificaciones" title="Activar notificaciones push">🔔</button>
+        <button id="pushToggle" class="icon-button" aria-label="Activar notificaciones" title="Activar notificaciones push"></button>
       </div>
     </section>
 
@@ -70,7 +66,7 @@
       </p>
       <div class="settings-row">
         <span id="googleStatusLabel">No conectado</span>
-        <button id="googleToggle" class="icon-button" aria-label="Conectar con Google" title="Conectar con Google">☁️</button>
+        <button id="googleToggle" class="icon-button" aria-label="Conectar con Google" title="Conectar con Google"></button>
       </div>
 
       <div id="googlePanel" class="google-panel" hidden>
