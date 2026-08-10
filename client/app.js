@@ -103,59 +103,77 @@ pushToggle.addEventListener('click', async () => {
   refreshPushButtonState();
 });
 
-const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-let recognition = null;
-let listening = false;
+let mediaRecorder = null;
+let audioChunks = [];
+let recording = false;
 
-if (SpeechRecognition) {
-  recognition = new SpeechRecognition();
-  recognition.lang = 'es-ES';
-  recognition.interimResults = true;
-  recognition.continuous = false;
+const canRecord = Boolean(navigator.mediaDevices?.getUserMedia && window.MediaRecorder);
 
-  recognition.onstart = () => {
-    listening = true;
-    micBtn.classList.add('listening');
-    waveformEl.classList.add('active');
-    statusEl.textContent = 'Escuchando...';
-    transcriptEl.textContent = '';
-  };
-
-  recognition.onresult = (event) => {
-    let text = '';
-    for (const result of event.results) {
-      text += result[0].transcript;
-    }
-    transcriptEl.textContent = text;
-
-    if (event.results[event.results.length - 1].isFinal) {
-      submitReminder(text);
-    }
-  };
-
-  recognition.onerror = (event) => {
-    statusEl.textContent = `Error de voz: ${event.error}`;
-  };
-
-  recognition.onend = () => {
-    listening = false;
-    micBtn.classList.remove('listening');
-    waveformEl.classList.remove('active');
-    if (statusEl.textContent === 'Escuchando...') {
-      statusEl.textContent = 'Pulsa el micrófono y di tu recordatorio';
-    }
-  };
-} else {
-  statusEl.textContent = 'Tu navegador no soporta voz. Usa el texto de abajo.';
+if (!canRecord) {
+  statusEl.textContent = 'Tu navegador no soporta grabación de audio. Usa el texto de abajo.';
   micBtn.disabled = true;
 }
 
+async function startRecording() {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+  audioChunks = [];
+  mediaRecorder = new MediaRecorder(stream);
+
+  mediaRecorder.ondataavailable = (e) => {
+    if (e.data.size > 0) audioChunks.push(e.data);
+  };
+
+  mediaRecorder.onstop = () => {
+    stream.getTracks().forEach((track) => track.stop());
+    const blob = new Blob(audioChunks, { type: mediaRecorder.mimeType || 'audio/webm' });
+    transcribeAndSubmit(blob);
+  };
+
+  mediaRecorder.start();
+  recording = true;
+  micBtn.classList.add('listening');
+  waveformEl.classList.add('active');
+  statusEl.textContent = 'Escuchando...';
+  transcriptEl.textContent = '';
+}
+
+function stopRecording() {
+  if (!mediaRecorder || !recording) return;
+  mediaRecorder.stop();
+  recording = false;
+  micBtn.classList.remove('listening');
+  waveformEl.classList.remove('active');
+  statusEl.textContent = 'Transcribiendo...';
+}
+
+async function transcribeAndSubmit(blob) {
+  try {
+    const formData = new FormData();
+    formData.append('audio', blob, 'recording.webm');
+
+    const res = await fetch('/api/transcribe', { method: 'POST', body: formData });
+    const data = await res.json();
+
+    if (!res.ok || !data.text) {
+      statusEl.textContent = data.error || 'No se pudo entender el audio, intenta de nuevo.';
+      return;
+    }
+
+    transcriptEl.textContent = data.text;
+    submitReminder(data.text);
+  } catch (err) {
+    statusEl.textContent = 'Error transcribiendo: ' + err.message;
+  }
+}
+
 micBtn.addEventListener('click', () => {
-  if (!recognition) return;
-  if (listening) {
-    recognition.stop();
+  if (!canRecord) return;
+  if (recording) {
+    stopRecording();
   } else {
-    recognition.start();
+    startRecording().catch((err) => {
+      statusEl.textContent = 'No se pudo acceder al micrófono: ' + err.message;
+    });
   }
 });
 

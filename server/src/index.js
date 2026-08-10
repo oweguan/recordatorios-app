@@ -2,6 +2,8 @@ import 'dotenv/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
+import multer from 'multer';
+import { transcribeAudio } from './transcribe.js';
 import {
   init,
   createReminder,
@@ -21,11 +23,26 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(__dirname, '..', '..', 'client');
 
 const app = express();
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 15 * 1024 * 1024 } });
+
 app.use(express.json());
 app.use(express.static(clientDir));
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
+});
+
+app.post('/api/transcribe', upload.single('audio'), async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'Falta el archivo de audio' });
+  }
+  try {
+    const text = await transcribeAudio(req.file.buffer, 'audio.webm', req.file.mimetype);
+    res.json({ text });
+  } catch (err) {
+    console.error('Error transcribiendo audio:', err.message);
+    res.status(502).json({ error: 'No se pudo transcribir el audio' });
+  }
 });
 
 app.post('/api/reminders', async (req, res) => {
