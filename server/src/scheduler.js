@@ -18,6 +18,7 @@ export function startScheduler() {
         const isEarlyNotice = new Date(reminder.notify_at).getTime() < new Date(reminder.due_at).getTime();
         await sendReminderMessage(
           reminder.chat_id,
+          reminder.id,
           reminder.task,
           isEarlyNotice ? new Date(reminder.due_at) : null,
           reminder.recurrence
