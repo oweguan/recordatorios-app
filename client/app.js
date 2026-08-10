@@ -26,6 +26,118 @@ themeToggle.addEventListener('click', () => {
   localStorage.setItem('theme', next);
 });
 
+const googleToggle = document.getElementById('googleToggle');
+const googlePanel = document.getElementById('googlePanel');
+const backupNowBtn = document.getElementById('backupNowBtn');
+const googleDisconnectBtn = document.getElementById('googleDisconnectBtn');
+const backupsList = document.getElementById('backupsList');
+
+async function refreshGoogleState() {
+  try {
+    const res = await fetch('/api/google/status');
+    const data = await res.json();
+
+    if (!data.configured) {
+      googleToggle.disabled = true;
+      googleToggle.title = 'Google no está configurado en el servidor';
+      googlePanel.hidden = true;
+      return;
+    }
+
+    googleToggle.classList.toggle('active', data.connected);
+    googleToggle.title = data.connected ? 'Google conectado' : 'Conectar con Google';
+    googlePanel.hidden = !data.connected;
+
+    if (data.connected) loadBackups();
+  } catch (err) {
+    // silencioso, no bloquea el resto de la app
+  }
+}
+
+async function loadBackups() {
+  try {
+    const res = await fetch('/api/google/backups');
+    const backups = await res.json();
+
+    if (!Array.isArray(backups) || backups.length === 0) {
+      backupsList.innerHTML = '<div class="empty">Aún no hay copias de seguridad</div>';
+      return;
+    }
+
+    backupsList.innerHTML = backups
+      .map(
+        (b) => `
+      <div class="backup-item" data-file-id="${b.id}">
+        <span>${escapeHtml(b.name)}</span>
+        <button data-action="restore-backup">Restaurar</button>
+      </div>`
+      )
+      .join('');
+  } catch (err) {
+    backupsList.innerHTML = '<div class="empty">No se pudieron cargar las copias</div>';
+  }
+}
+
+googleToggle.addEventListener('click', async () => {
+  if (googleToggle.classList.contains('active')) {
+    if (!confirm('¿Desconectar Google? Dejarás de sincronizar con Calendar y hacer backups.')) return;
+    await fetch('/api/google/disconnect', { method: 'POST' });
+    refreshGoogleState();
+  } else {
+    window.location.href = '/api/google/auth';
+  }
+});
+
+backupNowBtn.addEventListener('click', async () => {
+  backupNowBtn.disabled = true;
+  backupNowBtn.textContent = 'Guardando...';
+  try {
+    await fetch('/api/google/backup', { method: 'POST' });
+    await loadBackups();
+  } finally {
+    backupNowBtn.disabled = false;
+    backupNowBtn.textContent = 'Backup ahora';
+  }
+});
+
+googleDisconnectBtn.addEventListener('click', async () => {
+  if (!confirm('¿Desconectar Google?')) return;
+  await fetch('/api/google/disconnect', { method: 'POST' });
+  refreshGoogleState();
+});
+
+backupsList.addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action="restore-backup"]');
+  if (!button) return;
+  const fileId = button.closest('.backup-item').dataset.fileId;
+  if (!confirm('¿Restaurar esta copia? Se añadirán los recordatorios guardados en ella.')) return;
+
+  button.disabled = true;
+  button.textContent = 'Restaurando...';
+  try {
+    const res = await fetch(`/api/google/restore/${fileId}`, { method: 'POST' });
+    const data = await res.json();
+    statusEl.textContent = `Restaurados ${data.restored ?? 0} recordatorios.`;
+    loadReminders();
+  } finally {
+    button.disabled = false;
+    button.textContent = 'Restaurar';
+  }
+});
+
+{
+  const params = new URLSearchParams(window.location.search);
+  if (params.get('google') === 'connected') {
+    statusEl.textContent = 'Google conectado correctamente.';
+    window.history.replaceState({}, '', window.location.pathname);
+  } else if (params.get('google') === 'error') {
+    statusEl.textContent = 'No se pudo conectar con Google, inténtalo de nuevo.';
+    window.history.replaceState({}, '', window.location.pathname);
+  }
+}
+
+refreshGoogleState();
+
 const pushToggle = document.getElementById('pushToggle');
 
 function urlBase64ToUint8Array(base64String) {

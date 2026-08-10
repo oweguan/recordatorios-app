@@ -37,7 +37,35 @@ db.exec(`
   )
 `);
 
+try {
+  db.exec('ALTER TABLE reminders ADD COLUMN google_event_id TEXT');
+} catch {
+  // ya existe
+}
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS google_auth (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    refresh_token TEXT
+  )
+`);
+
 export async function init() {}
+
+export async function saveGoogleAuth({ refreshToken }) {
+  db.prepare(`
+    INSERT INTO google_auth (id, refresh_token) VALUES (1, ?)
+    ON CONFLICT(id) DO UPDATE SET refresh_token = excluded.refresh_token
+  `).run(refreshToken);
+}
+
+export async function getGoogleAuth() {
+  return db.prepare('SELECT * FROM google_auth WHERE id = 1').get();
+}
+
+export async function updateReminderGoogleEventId(id, googleEventId) {
+  db.prepare('UPDATE reminders SET google_event_id = ? WHERE id = ?').run(googleEventId, id);
+}
 
 export async function savePushSubscription({ endpoint, p256dh, auth }) {
   db.prepare(`

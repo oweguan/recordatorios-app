@@ -15,4 +15,7 @@ export const {
   savePushSubscription,
   listPushSubscriptions,
   deletePushSubscription,
+  saveGoogleAuth,
+  getGoogleAuth,
+  updateReminderGoogleEventId,
 } = impl;

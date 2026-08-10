@@ -32,6 +32,32 @@ export async function init() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS google_event_id TEXT`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS google_auth (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      refresh_token TEXT
+    )
+  `);
+}
+
+export async function saveGoogleAuth({ refreshToken }) {
+  await pool.query(
+    `INSERT INTO google_auth (id, refresh_token) VALUES (1, $1)
+     ON CONFLICT (id) DO UPDATE SET refresh_token = excluded.refresh_token`,
+    [refreshToken]
+  );
+}
+
+export async function getGoogleAuth() {
+  const result = await pool.query('SELECT * FROM google_auth WHERE id = 1');
+  return result.rows[0];
+}
+
+export async function updateReminderGoogleEventId(id, googleEventId) {
+  await pool.query('UPDATE reminders SET google_event_id = $1 WHERE id = $2', [googleEventId, id]);
 }
 
 export async function savePushSubscription({ endpoint, p256dh, auth }) {

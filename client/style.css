@@ -342,3 +342,66 @@ body {
   padding: 24px 12px;
   font-size: 0.9rem;
 }
+
+.google-panel {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 36px;
+}
+
+.google-panel h2 {
+  font-size: 1rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.google-actions {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.google-actions button {
+  padding: 8px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  font-size: 0.85rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.google-actions button:hover {
+  background: var(--btn-hover);
+}
+
+#backupNowBtn {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.backup-item {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  font-size: 0.85rem;
+}
+
+.backup-item button {
+  background: var(--btn);
+  color: var(--text);
+  border: none;
+  border-radius: 6px;
+  padding: 5px 10px;
+  font-size: 0.8rem;
+  cursor: pointer;
+}

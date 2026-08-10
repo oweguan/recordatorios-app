@@ -13,11 +13,53 @@ import {
   deleteReminder,
   savePushSubscription,
   deletePushSubscription,
+  updateReminderGoogleEventId,
 } from './db/index.js';
 import { parseReminderText } from './parser.js';
 import { parseWithLLM } from './llmParser.js';
 import { startScheduler } from './scheduler.js';
 import { isPushEnabled } from './push.js';
+import {
+  isGoogleConfigured,
+  getAuthUrl,
+  handleOAuthCallback,
+  isGoogleConnected,
+  disconnectGoogle,
+  backupToDrive,
+  listDriveBackups,
+  downloadDriveBackup,
+  createCalendarEvent,
+  updateCalendarEvent,
+  deleteCalendarEvent,
+} from './google.js';
+
+async function syncCreateToCalendar(reminder) {
+  try {
+    if (!(await isGoogleConnected())) return;
+    const eventId = await createCalendarEvent(reminder);
+    await updateReminderGoogleEventId(reminder.id, eventId);
+  } catch (err) {
+    console.warn('No se pudo sincronizar con Calendar:', err.message);
+  }
+}
+
+async function syncUpdateToCalendar(reminder) {
+  try {
+    if (!reminder.google_event_id) return;
+    await updateCalendarEvent(reminder.google_event_id, reminder);
+  } catch (err) {
+    console.warn('No se pudo actualizar el evento de Calendar:', err.message);
+  }
+}
+
+async function syncDeleteFromCalendar(reminder) {
+  try {
+    if (!reminder.google_event_id) return;
+    await deleteCalendarEvent(reminder.google_event_id);
+  } catch (err) {
+    console.warn('No se pudo eliminar el evento de Calendar:', err.message);
+  }
+}
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(__dirname, '..', '..', 'client');
@@ -88,6 +130,8 @@ app.post('/api/reminders', async (req, res) => {
     chatId,
   });
 
+  syncCreateToCalendar(reminder);
+
   res.status(201).json({ reminder, interpretedAs: matchedText, leadMinutes, usedLLM });
 });
 
@@ -119,6 +163,7 @@ app.patch('/api/reminders/:id', async (req, res) => {
   }
 
   const updated = await updateReminder(id, { task, dueAt, notifyAt });
+  syncUpdateToCalendar(updated);
   res.json(updated);
 });
 
@@ -140,6 +185,7 @@ app.post('/api/reminders/:id/postpone', async (req, res) => {
   const notifyAt = new Date(new Date(existing.notify_at).getTime() + deltaMs).toISOString();
 
   const updated = await updateReminder(id, { task: existing.task, dueAt, notifyAt });
+  syncUpdateToCalendar(updated);
   res.json(updated);
 });
 
@@ -177,7 +223,76 @@ app.delete('/api/reminders/:id', async (req, res) => {
   }
 
   await deleteReminder(id);
+  syncDeleteFromCalendar(existing);
   res.status(204).end();
+});
+
+app.get('/api/google/status', async (req, res) => {
+  res.json({ configured: isGoogleConfigured(), connected: isGoogleConfigured() && (await isGoogleConnected()) });
+});
+
+app.get('/api/google/auth', (req, res) => {
+  if (!isGoogleConfigured()) {
+    return res.status(404).send('Google no está configurado en el servidor');
+  }
+  res.redirect(getAuthUrl());
+});
+
+app.get('/api/google/callback', async (req, res) => {
+  try {
+    await handleOAuthCallback(req.query.code);
+    res.redirect('/?google=connected');
+  } catch (err) {
+    console.error('Error en callback de Google:', err.message);
+    res.redirect('/?google=error');
+  }
+});
+
+app.post('/api/google/disconnect', async (req, res) => {
+  await disconnectGoogle();
+  res.status(204).end();
+});
+
+app.post('/api/google/backup', async (req, res) => {
+  try {
+    const file = await backupToDrive();
+    res.status(201).json(file);
+  } catch (err) {
+    console.error('Error en backup a Drive:', err.message);
+    res.status(502).json({ error: 'No se pudo hacer la copia de seguridad' });
+  }
+});
+
+app.get('/api/google/backups', async (req, res) => {
+  try {
+    res.json(await listDriveBackups());
+  } catch (err) {
+    console.error('Error listando backups:', err.message);
+    res.status(502).json({ error: 'No se pudieron listar las copias de seguridad' });
+  }
+});
+
+app.post('/api/google/restore/:fileId', async (req, res) => {
+  try {
+    const backupReminders = await downloadDriveBackup(req.params.fileId);
+    let restored = 0;
+    for (const r of backupReminders) {
+      if (r.status !== 'pending') continue;
+      await createReminder({
+        originalText: r.original_text,
+        task: r.task,
+        dueAt: r.due_at,
+        notifyAt: r.notify_at,
+        recurrence: r.recurrence,
+        chatId: r.chat_id,
+      });
+      restored++;
+    }
+    res.json({ restored });
+  } catch (err) {
+    console.error('Error restaurando backup:', err.message);
+    res.status(502).json({ error: 'No se pudo restaurar la copia de seguridad' });
+  }
 });
 
 const PORT = process.env.PORT || 3001;
