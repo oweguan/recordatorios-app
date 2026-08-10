@@ -8,6 +8,16 @@ if (!token) {
 
 export const bot = new TelegramBot(token, { polling: false });
 
-export function sendReminderMessage(chatId, task) {
+export function sendReminderMessage(chatId, task, dueAt) {
+  if (dueAt) {
+    const hora = dueAt.toLocaleString('es-ES', {
+      timeZone: 'Europe/Madrid',
+      day: '2-digit',
+      month: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return bot.sendMessage(chatId, `Recordatorio: ${task} (hoy a las ${hora})`);
+  }
   return bot.sendMessage(chatId, `Recordatorio: ${task}`);
 }

@@ -82,7 +82,8 @@ async function submitReminder(text) {
       return;
     }
 
-    statusEl.textContent = `Guardado: "${data.reminder.task}" — entendido como "${data.interpretedAs}"`;
+    const leadNote = data.leadMinutes > 0 ? ` — aviso ${data.leadMinutes} min antes` : '';
+    statusEl.textContent = `Guardado: "${data.reminder.task}" — entendido como "${data.interpretedAs}"${leadNote}`;
     transcriptEl.textContent = '';
     loadReminders();
   } catch (err) {

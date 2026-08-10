@@ -15,12 +15,15 @@ export function startScheduler() {
 
     for (const reminder of due) {
       try {
-        await sendReminderMessage(reminder.chat_id, reminder.task);
+        const isEarlyNotice = new Date(reminder.notify_at).getTime() < new Date(reminder.due_at).getTime();
+        await sendReminderMessage(reminder.chat_id, reminder.task, isEarlyNotice ? new Date(reminder.due_at) : null);
         console.log(`Enviado recordatorio #${reminder.id}: ${reminder.task}`);
 
         if (reminder.recurrence && RECURRENCE_MS[reminder.recurrence]) {
-          const next = new Date(new Date(reminder.due_at).getTime() + RECURRENCE_MS[reminder.recurrence]);
-          await rescheduleRecurring(reminder.id, next.toISOString());
+          const delta = RECURRENCE_MS[reminder.recurrence];
+          const nextDue = new Date(new Date(reminder.due_at).getTime() + delta);
+          const nextNotify = new Date(new Date(reminder.notify_at).getTime() + delta);
+          await rescheduleRecurring(reminder.id, nextDue.toISOString(), nextNotify.toISOString());
         } else {
           await markSent(reminder.id);
         }

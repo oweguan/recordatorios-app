@@ -20,14 +20,21 @@ db.exec(`
   )
 `);
 
+try {
+  db.exec('ALTER TABLE reminders ADD COLUMN notify_at TEXT');
+} catch {
+  // ya existe
+}
+db.exec(`UPDATE reminders SET notify_at = due_at WHERE notify_at IS NULL`);
+
 export async function init() {}
 
-export async function createReminder({ originalText, task, dueAt, recurrence, chatId }) {
+export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId }) {
   const stmt = db.prepare(`
-    INSERT INTO reminders (original_text, task, due_at, recurrence, chat_id)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id)
+    VALUES (?, ?, ?, ?, ?, ?)
   `);
-  const result = stmt.run(originalText, task, dueAt, recurrence ?? null, String(chatId));
+  const result = stmt.run(originalText, task, dueAt, notifyAt ?? dueAt, recurrence ?? null, String(chatId));
   return getReminderById(Number(result.lastInsertRowid));
 }
 
@@ -42,7 +49,7 @@ export async function listReminders() {
 export async function getDueReminders(nowIso) {
   return db.prepare(`
     SELECT * FROM reminders
-    WHERE status = 'pending' AND due_at <= ?
+    WHERE status = 'pending' AND notify_at <= ?
   `).all(nowIso);
 }
 
@@ -50,6 +57,7 @@ export async function markSent(id) {
   db.prepare(`UPDATE reminders SET status = 'sent' WHERE id = ?`).run(id);
 }
 
-export async function rescheduleRecurring(id, nextDueAt) {
-  db.prepare(`UPDATE reminders SET due_at = ?, status = 'pending' WHERE id = ?`).run(nextDueAt, id);
+export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
+  db.prepare(`UPDATE reminders SET due_at = ?, notify_at = ?, status = 'pending' WHERE id = ?`)
+    .run(nextDueAt, nextNotifyAt ?? nextDueAt, id);
 }

@@ -20,13 +20,15 @@ export async function init() {
       created_at TIMESTAMPTZ NOT NULL DEFAULT now()
     )
   `);
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS notify_at TEXT`);
+  await pool.query(`UPDATE reminders SET notify_at = due_at WHERE notify_at IS NULL`);
 }
 
-export async function createReminder({ originalText, task, dueAt, recurrence, chatId }) {
+export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId }) {
   const result = await pool.query(
-    `INSERT INTO reminders (original_text, task, due_at, recurrence, chat_id)
-     VALUES ($1, $2, $3, $4, $5) RETURNING *`,
-    [originalText, task, dueAt, recurrence ?? null, String(chatId)]
+    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id)
+     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+    [originalText, task, dueAt, notifyAt ?? dueAt, recurrence ?? null, String(chatId)]
   );
   return result.rows[0];
 }
@@ -43,7 +45,7 @@ export async function listReminders() {
 
 export async function getDueReminders(nowIso) {
   const result = await pool.query(
-    `SELECT * FROM reminders WHERE status = 'pending' AND due_at <= $1`,
+    `SELECT * FROM reminders WHERE status = 'pending' AND notify_at <= $1`,
     [nowIso]
   );
   return result.rows;
@@ -53,9 +55,9 @@ export async function markSent(id) {
   await pool.query(`UPDATE reminders SET status = 'sent' WHERE id = $1`, [id]);
 }
 
-export async function rescheduleRecurring(id, nextDueAt) {
+export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
   await pool.query(
-    `UPDATE reminders SET due_at = $1, status = 'pending' WHERE id = $2`,
-    [nextDueAt, id]
+    `UPDATE reminders SET due_at = $1, notify_at = $2, status = 'pending' WHERE id = $3`,
+    [nextDueAt, nextNotifyAt ?? nextDueAt, id]
   );
 }
