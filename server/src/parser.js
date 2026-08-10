@@ -27,6 +27,28 @@ function cleanTask(raw) {
     .trim();
 }
 
+const PRIORITY_PATTERN = /(?:^|\s)p([1-4])(?=\s|$)/i;
+const LABEL_PATTERN = /(?:^|\s)@([\p{L}0-9_-]+)/gu;
+
+// Detecta "p1".."p4" (estilo Todoist) y los separa del resto del texto. Prioridad 4 = sin prioridad.
+export function extractPriority(text) {
+  const match = text.match(PRIORITY_PATTERN);
+  if (!match) return { priority: 4, text };
+
+  const priority = parseInt(match[1], 10);
+  const cleaned = (text.slice(0, match.index) + text.slice(match.index + match[0].length))
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { priority, text: cleaned };
+}
+
+// Detecta "@etiqueta" (una o varias) y las separa del resto del texto.
+export function extractLabels(text) {
+  const labels = [...text.matchAll(LABEL_PATTERN)].map((m) => m[1].toLowerCase());
+  const cleaned = text.replace(LABEL_PATTERN, ' ').replace(/\s+/g, ' ').trim();
+  return { labels: [...new Set(labels)], text: cleaned };
+}
+
 const WEEKDAY_RECURRENCE = /\b(todos los|cada)\s+(lunes|martes|mi[ée]rcoles|jueves|viernes|s[áa]bados?|domingos?)\b/i;
 const RECURRENCE_PATTERNS = [
   { regex: /\b(todos los d[ií]as|cada d[ií]a|diariamente)\b/i, value: 'daily' },

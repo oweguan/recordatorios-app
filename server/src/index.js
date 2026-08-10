@@ -15,7 +15,7 @@ import {
   deletePushSubscription,
   updateReminderGoogleEventId,
 } from './db/index.js';
-import { parseReminderText } from './parser.js';
+import { parseReminderText, extractPriority, extractLabels } from './parser.js';
 import { parseWithLLM } from './llmParser.js';
 import { startScheduler, sendDailySummary } from './scheduler.js';
 import { isPushEnabled } from './push.js';
@@ -126,12 +126,15 @@ app.post('/api/reminders', async (req, res) => {
     return res.status(400).json({ error: 'Faltan campos: text es obligatorio y no hay OWNER_CHAT_ID configurado' });
   }
 
+  const { priority, text: withoutPriority } = extractPriority(text);
+  const { labels, text: withoutLabels } = extractLabels(withoutPriority);
+
   let parsed = null;
   let usedLLM = false;
 
   if (process.env.GROQ_API_KEY) {
     try {
-      parsed = await parseWithLLM(text);
+      parsed = await parseWithLLM(withoutLabels);
       usedLLM = true;
     } catch (err) {
       console.warn('Groq no disponible, usando parser de reglas:', err.message);
@@ -139,7 +142,7 @@ app.post('/api/reminders', async (req, res) => {
   }
 
   if (!parsed || !parsed.dueAt) {
-    parsed = parseReminderText(text);
+    parsed = parseReminderText(withoutLabels);
     usedLLM = false;
   }
 
@@ -148,11 +151,13 @@ app.post('/api/reminders', async (req, res) => {
   // Sin fecha detectada: se guarda igualmente en la Bandeja de entrada, sin aviso programado.
   const reminder = await createReminder({
     originalText: text,
-    task: task || text,
+    task: task || withoutLabels || text,
     dueAt: dueAt ? dueAt.toISOString() : null,
     notifyAt: dueAt ? notifyAt.toISOString() : null,
     recurrence: req.body.recurrence ?? recurrence,
     chatId,
+    priority,
+    labels,
   });
 
   if (dueAt) {
@@ -178,6 +183,17 @@ app.patch('/api/reminders/:id', async (req, res) => {
   let dueAt = existing.due_at;
   let notifyAt = existing.notify_at;
 
+  let priority = existing.priority ?? 4;
+  if (Object.prototype.hasOwnProperty.call(req.body, 'priority')) {
+    const p = Number(req.body.priority);
+    if (p >= 1 && p <= 4) priority = p;
+  }
+
+  let labels = existing.labels ?? [];
+  if (Object.prototype.hasOwnProperty.call(req.body, 'labels') && Array.isArray(req.body.labels)) {
+    labels = req.body.labels.map((l) => String(l).toLowerCase().trim()).filter(Boolean);
+  }
+
   if (Object.prototype.hasOwnProperty.call(req.body, 'dueAt')) {
     if (req.body.dueAt === null) {
       dueAt = null;
@@ -196,7 +212,7 @@ app.patch('/api/reminders/:id', async (req, res) => {
     }
   }
 
-  const updated = await updateReminder(id, { task, dueAt, notifyAt });
+  const updated = await updateReminder(id, { task, dueAt, notifyAt, priority, labels });
   syncUpdateToCalendar(updated);
   res.json(updated);
 });
@@ -221,7 +237,13 @@ app.post('/api/reminders/:id/postpone', async (req, res) => {
   const dueAt = new Date(new Date(existing.due_at).getTime() + deltaMs).toISOString();
   const notifyAt = new Date(new Date(existing.notify_at).getTime() + deltaMs).toISOString();
 
-  const updated = await updateReminder(id, { task: existing.task, dueAt, notifyAt });
+  const updated = await updateReminder(id, {
+    task: existing.task,
+    dueAt,
+    notifyAt,
+    priority: existing.priority,
+    labels: existing.labels,
+  });
   syncUpdateToCalendar(updated);
   res.json(updated);
 });
@@ -335,6 +357,8 @@ app.post('/api/google/restore/:fileId', async (req, res) => {
         notifyAt: r.notify_at,
         recurrence: r.recurrence,
         chatId: r.chat_id,
+        priority: r.priority,
+        labels: r.labels,
       });
       restored++;
     }

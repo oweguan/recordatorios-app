@@ -18,7 +18,10 @@ const ICONS = {
   calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
   search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
   camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
+  flag: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 21V4c0-.55.45-1 1-1 2 1.5 4.5 1.5 7 0 2.5 1.5 5 1.5 6.5 0 .3-.3.8-.1.8.3v10c0 .3-.5.5-.8.3-1.5-1.5-4-1.5-6.5 0-2.5 1.5-5 1.5-7 0V21c0 .55-.45 1-1 1z"/></svg>',
 };
+
+const PRIORITY_COLORS = { 1: '#e63946', 2: '#f4a52a', 3: '#4a90e2', 4: 'transparent' };
 
 const NAV_ICONS = { inbox: ICONS.inbox, today: ICONS.today, upcoming: ICONS.calendar, explore: ICONS.search };
 
@@ -566,6 +569,7 @@ document.getElementById('textForm').addEventListener('submit', (e) => {
   if (!text) return;
   submitReminder(text);
   input.value = '';
+  updateQuickAddHints(input, document.getElementById('textHints'));
 });
 
 // Refuerzo: el envio implicito con Enter no siempre dispara el evento "submit"
@@ -587,7 +591,9 @@ function openQuickAdd() {
 
 function closeQuickAdd() {
   quickAddModal.hidden = true;
-  document.getElementById('quickAddInput').value = '';
+  const input = document.getElementById('quickAddInput');
+  input.value = '';
+  updateQuickAddHints(input, document.getElementById('quickAddHints'));
 }
 
 document.querySelectorAll('[data-action="open-quick-add"]').forEach((btn) => {
@@ -605,6 +611,92 @@ document.getElementById('quickAddForm').addEventListener('submit', (e) => {
   closeQuickAdd();
 });
 
+// ==================== Quick Add: prioridad, etiquetas y sugerencias en vivo ====================
+// Espejo en cliente de extractPriority/extractLabels (server/src/parser.js), solo para la vista previa.
+
+const QA_PRIORITY_RE = /(?:^|\s)p([1-4])(?=\s|$)/i;
+const QA_LABEL_RE = /(?:^|\s)@([\p{L}0-9_-]+)/gu;
+
+function parseQuickAddPreview(text) {
+  const pMatch = text.match(QA_PRIORITY_RE);
+  const priority = pMatch ? Number(pMatch[1]) : null;
+  const labels = [...text.matchAll(QA_LABEL_RE)].map((m) => m[1].toLowerCase());
+  return { priority, labels: [...new Set(labels)] };
+}
+
+function getPartialLabelToken(text, caret) {
+  const before = text.slice(0, caret ?? text.length);
+  const m = before.match(/@([\p{L}0-9_-]*)$/u);
+  return m ? m[1] : null;
+}
+
+function knownLabels() {
+  const set = new Set();
+  allReminders.forEach((r) => (r.labels || []).forEach((l) => set.add(l)));
+  return [...set].sort();
+}
+
+function updateQuickAddHints(inputEl, hintsEl) {
+  const text = inputEl.value;
+  const partial = getPartialLabelToken(text, inputEl.selectionStart);
+
+  if (partial !== null) {
+    const suggestions = knownLabels().filter((l) => l.startsWith(partial.toLowerCase()) && l !== partial.toLowerCase());
+    if (suggestions.length > 0) {
+      hintsEl.innerHTML = suggestions
+        .slice(0, 6)
+        .map((l) => `<button type="button" class="hint-suggest" data-label="${escapeHtml(l)}">@${escapeHtml(l)}</button>`)
+        .join('');
+      hintsEl.hidden = false;
+      return;
+    }
+  }
+
+  const { priority, labels } = parseQuickAddPreview(text);
+  if (!priority && labels.length === 0) {
+    hintsEl.innerHTML = '';
+    hintsEl.hidden = true;
+    return;
+  }
+
+  const chips = [];
+  if (priority) {
+    chips.push(`<span class="hint-chip priority-chip p${priority}">${ICONS.flag}P${priority}</span>`);
+  }
+  labels.forEach((l) => chips.push(`<span class="hint-chip label-chip">@${escapeHtml(l)}</span>`));
+  hintsEl.innerHTML = chips.join('');
+  hintsEl.hidden = false;
+}
+
+function insertLabelSuggestion(inputEl, hintsEl, label) {
+  const text = inputEl.value;
+  const caret = inputEl.selectionStart ?? text.length;
+  const before = text.slice(0, caret).replace(/@[\p{L}0-9_-]*$/u, `@${label} `);
+  const after = text.slice(caret);
+  inputEl.value = before + after;
+  inputEl.focus();
+  const newCaret = before.length;
+  inputEl.setSelectionRange(newCaret, newCaret);
+  updateQuickAddHints(inputEl, hintsEl);
+}
+
+function wireQuickAddHints(inputEl, hintsEl) {
+  const refresh = () => updateQuickAddHints(inputEl, hintsEl);
+  inputEl.addEventListener('input', refresh);
+  inputEl.addEventListener('click', refresh);
+  inputEl.addEventListener('keyup', (e) => {
+    if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(e.key)) refresh();
+  });
+  hintsEl.addEventListener('click', (e) => {
+    const btn = e.target.closest('.hint-suggest');
+    if (!btn) return;
+    insertLabelSuggestion(inputEl, hintsEl, btn.dataset.label);
+  });
+}
+
+wireQuickAddHints(document.getElementById('textInput'), document.getElementById('textHints'));
+wireQuickAddHints(document.getElementById('quickAddInput'), document.getElementById('quickAddHints'));
+
 // ==================== Render de una fila de recordatorio ====================
 
 const editingIds = new Set();
@@ -617,6 +709,16 @@ function toDatetimeLocalValue(iso) {
   const d = iso ? new Date(iso) : new Date(Date.now() + 3600000);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function priorityFlag(priority) {
+  if (!priority || priority === 4) return '';
+  return `<span class="priority-flag p${priority}" title="Prioridad ${priority}">${ICONS.flag}</span>`;
+}
+
+function labelChips(labels) {
+  if (!labels || labels.length === 0) return '';
+  return `<span class="label-chips">${labels.map((l) => `<span class="label-chip">@${escapeHtml(l)}</span>`).join('')}</span>`;
 }
 
 function renderReminderView(r) {
@@ -635,8 +737,9 @@ function renderReminderView(r) {
     <div class="reminder-row" data-id="${r.id}">
       <button class="check-circle" data-action="complete" aria-label="Completar">${ICONS.check}</button>
       <div class="reminder-info">
-        <span class="task-text">${escapeHtml(r.task)}</span>
+        <span class="task-text">${priorityFlag(r.priority)}${escapeHtml(r.task)}</span>
         ${meta}
+        ${labelChips(r.labels)}
       </div>
       <div class="reminder-quick-actions">
         ${postponeButtons}
@@ -647,11 +750,23 @@ function renderReminderView(r) {
 }
 
 function renderReminderEdit(r) {
+  const priority = r.priority || 4;
+  const labelsValue = (r.labels || []).map((l) => `@${l}`).join(' ');
+
   return `
-    <div class="reminder-edit-row" data-id="${r.id}">
+    <div class="reminder-edit-row" data-id="${r.id}" data-priority="${priority}">
       <div class="reminder-edit-form">
         <input type="text" class="edit-task" value="${escapeHtml(r.task)}" />
         <input type="datetime-local" class="edit-due" value="${toDatetimeLocalValue(r.due_at)}" />
+        <div class="edit-priority-picker">
+          ${[1, 2, 3, 4]
+            .map(
+              (p) =>
+                `<button type="button" class="priority-pick p${p}${p === priority ? ' active' : ''}" data-action="pick-priority" data-priority="${p}">${ICONS.flag}P${p}</button>`
+            )
+            .join('')}
+        </div>
+        <input type="text" class="edit-labels" placeholder="@etiquetas" value="${escapeHtml(labelsValue)}" />
         <div class="reminder-edit-actions">
           <button data-action="save-edit">Guardar</button>
           <button data-action="cancel-edit">Cancelar</button>
@@ -672,7 +787,7 @@ function renderList(el, items, emptyHtml) {
 document.body.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
   if (!button) return;
-  const validActions = ['complete', 'edit', 'cancel-edit', 'delete', 'postpone', 'save-edit'];
+  const validActions = ['complete', 'edit', 'cancel-edit', 'delete', 'postpone', 'save-edit', 'pick-priority'];
   if (!validActions.includes(button.dataset.action)) return;
 
   const item = button.closest('.reminder-row, .reminder-edit-row');
@@ -692,6 +807,10 @@ document.body.addEventListener('click', async (e) => {
   } else if (action === 'cancel-edit') {
     editingIds.delete(id);
     renderCurrentPage();
+  } else if (action === 'pick-priority') {
+    const priority = Number(button.dataset.priority);
+    item.dataset.priority = priority;
+    item.querySelectorAll('.priority-pick').forEach((b) => b.classList.toggle('active', Number(b.dataset.priority) === priority));
   } else if (action === 'delete') {
     if (!confirm('¿Cancelar este recordatorio?')) return;
     await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
@@ -709,10 +828,14 @@ document.body.addEventListener('click', async (e) => {
     const dueLocal = item.querySelector('.edit-due').value;
     if (!task || !dueLocal) return;
 
+    const priority = Number(item.dataset.priority) || 4;
+    const labelsRaw = item.querySelector('.edit-labels').value;
+    const labels = [...new Set([...labelsRaw.matchAll(/@?([\p{L}0-9_-]+)/gu)].map((m) => m[1].toLowerCase()))];
+
     await fetch(`/api/reminders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task, dueAt: new Date(dueLocal).toISOString() }),
+      body: JSON.stringify({ task, dueAt: new Date(dueLocal).toISOString(), priority, labels }),
     });
     editingIds.delete(id);
     refreshData();

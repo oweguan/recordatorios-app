@@ -78,9 +78,10 @@
     <!-- Bandeja de entrada -->
     <section class="app-page" data-page="inbox">
       <form id="textForm" class="quick-add">
-        <input id="textInput" type="text" placeholder="Añadir una tarea... p.ej. mañana a las 9" autocomplete="off" />
+        <input id="textInput" type="text" placeholder="Añadir una tarea... p.ej. mañana a las 9, p1 @casa" autocomplete="off" />
         <button type="button" id="micBtn" class="mic-inline" aria-label="Grabar por voz" title="Grabar por voz"></button>
       </form>
+      <div id="textHints" class="quick-add-hints" hidden></div>
       <div id="status" class="status"></div>
       <div id="transcript" class="transcript"></div>
 
@@ -163,7 +164,8 @@
     <div class="modal-box">
       <h3>Añadir tarea</h3>
       <form id="quickAddForm">
-        <input id="quickAddInput" type="text" placeholder="p.ej. reunión el jueves a las 5" autocomplete="off" />
+        <input id="quickAddInput" type="text" placeholder="p.ej. reunión el jueves a las 5, p1 @casa" autocomplete="off" />
+        <div id="quickAddHints" class="quick-add-hints" hidden></div>
         <div class="modal-actions">
           <button type="button" data-action="close-quick-add">Cancelar</button>
           <button type="submit" class="ob-primary">Añadir</button>

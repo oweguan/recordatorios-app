@@ -43,6 +43,18 @@ try {
   // ya existe
 }
 
+try {
+  db.exec("ALTER TABLE reminders ADD COLUMN priority INTEGER NOT NULL DEFAULT 4");
+} catch {
+  // ya existe
+}
+
+try {
+  db.exec('ALTER TABLE reminders ADD COLUMN labels TEXT');
+} catch {
+  // ya existe
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS google_auth (
     id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -71,6 +83,11 @@ if (dueAtInfo && dueAtInfo.notnull) {
     DROP TABLE reminders;
     ALTER TABLE reminders_new RENAME TO reminders;
   `);
+}
+
+function parseRow(row) {
+  if (!row) return row;
+  return { ...row, labels: row.labels ? JSON.parse(row.labels) : [] };
 }
 
 export async function init() {}
@@ -106,21 +123,30 @@ export async function deletePushSubscription(endpoint) {
   db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
 }
 
-export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId }) {
+export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId, priority, labels }) {
   const stmt = db.prepare(`
-    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id)
-    VALUES (?, ?, ?, ?, ?, ?)
+    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
-  const result = stmt.run(originalText, task, dueAt ?? null, notifyAt ?? dueAt ?? null, recurrence ?? null, String(chatId));
+  const result = stmt.run(
+    originalText,
+    task,
+    dueAt ?? null,
+    notifyAt ?? dueAt ?? null,
+    recurrence ?? null,
+    String(chatId),
+    priority ?? 4,
+    JSON.stringify(labels ?? [])
+  );
   return getReminderById(Number(result.lastInsertRowid));
 }
 
 export async function getReminderById(id) {
-  return db.prepare('SELECT * FROM reminders WHERE id = ?').get(id);
+  return parseRow(db.prepare('SELECT * FROM reminders WHERE id = ?').get(id));
 }
 
 export async function listReminders() {
-  return db.prepare('SELECT * FROM reminders ORDER BY due_at IS NULL, due_at ASC').all();
+  return db.prepare('SELECT * FROM reminders ORDER BY due_at IS NULL, due_at ASC').all().map(parseRow);
 }
 
 export async function getDueReminders(nowIso) {
@@ -139,9 +165,11 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
     .run(nextDueAt, nextNotifyAt ?? nextDueAt, id);
 }
 
-export async function updateReminder(id, { task, dueAt, notifyAt }) {
-  db.prepare(`UPDATE reminders SET task = ?, due_at = ?, notify_at = ?, status = 'pending' WHERE id = ?`)
-    .run(task, dueAt ?? null, notifyAt ?? null, id);
+export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels }) {
+  db.prepare(`
+    UPDATE reminders SET task = ?, due_at = ?, notify_at = ?, status = 'pending', priority = ?, labels = ?
+    WHERE id = ?
+  `).run(task, dueAt ?? null, notifyAt ?? null, priority ?? 4, JSON.stringify(labels ?? []), id);
   return getReminderById(id);
 }
 

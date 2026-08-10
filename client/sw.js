@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recordatorios-v11';
+const CACHE_NAME = 'recordatorios-v12';
 const ASSETS = [
   '/',
   '/index.html',

@@ -34,6 +34,8 @@ export async function init() {
   `);
 
   await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS google_event_id TEXT`);
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS priority INTEGER NOT NULL DEFAULT 4`);
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS labels TEXT`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS google_auth (
@@ -45,6 +47,11 @@ export async function init() {
   // Permite recordatorios sin fecha (bandeja de entrada).
   await pool.query(`ALTER TABLE reminders ALTER COLUMN due_at DROP NOT NULL`);
   await pool.query(`ALTER TABLE reminders ALTER COLUMN notify_at DROP NOT NULL`);
+}
+
+function parseRow(row) {
+  if (!row) return row;
+  return { ...row, labels: row.labels ? JSON.parse(row.labels) : [] };
 }
 
 export async function saveGoogleAuth({ refreshToken }) {
@@ -82,23 +89,32 @@ export async function deletePushSubscription(endpoint) {
   await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [endpoint]);
 }
 
-export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId }) {
+export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId, priority, labels }) {
   const result = await pool.query(
-    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id)
-     VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [originalText, task, dueAt ?? null, notifyAt ?? dueAt ?? null, recurrence ?? null, String(chatId)]
+    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    [
+      originalText,
+      task,
+      dueAt ?? null,
+      notifyAt ?? dueAt ?? null,
+      recurrence ?? null,
+      String(chatId),
+      priority ?? 4,
+      JSON.stringify(labels ?? []),
+    ]
   );
-  return result.rows[0];
+  return parseRow(result.rows[0]);
 }
 
 export async function getReminderById(id) {
   const result = await pool.query('SELECT * FROM reminders WHERE id = $1', [id]);
-  return result.rows[0];
+  return parseRow(result.rows[0]);
 }
 
 export async function listReminders() {
   const result = await pool.query('SELECT * FROM reminders ORDER BY due_at ASC NULLS FIRST');
-  return result.rows;
+  return result.rows.map(parseRow);
 }
 
 export async function getDueReminders(nowIso) {
@@ -120,12 +136,13 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
   );
 }
 
-export async function updateReminder(id, { task, dueAt, notifyAt }) {
+export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels }) {
   const result = await pool.query(
-    `UPDATE reminders SET task = $1, due_at = $2, notify_at = $3, status = 'pending' WHERE id = $4 RETURNING *`,
-    [task, dueAt ?? null, notifyAt ?? null, id]
+    `UPDATE reminders SET task = $1, due_at = $2, notify_at = $3, status = 'pending', priority = $4, labels = $5
+     WHERE id = $6 RETURNING *`,
+    [task, dueAt ?? null, notifyAt ?? null, priority ?? 4, JSON.stringify(labels ?? []), id]
   );
-  return result.rows[0];
+  return parseRow(result.rows[0]);
 }
 
 export async function deleteReminder(id) {

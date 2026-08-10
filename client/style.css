@@ -237,6 +237,52 @@ body {
   100% { box-shadow: 0 0 0 0 rgba(219, 76, 63, 0); }
 }
 
+.quick-add-hints {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  max-width: 460px;
+  margin-top: 8px;
+}
+
+.hint-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: var(--btn);
+  color: var(--text-dim);
+}
+
+.hint-chip svg {
+  width: 11px;
+  height: 11px;
+}
+
+.hint-chip.priority-chip.p1 { background: rgba(230, 57, 70, 0.15); color: #e63946; }
+.hint-chip.priority-chip.p2 { background: rgba(244, 165, 42, 0.18); color: #b3730a; }
+.hint-chip.priority-chip.p3 { background: rgba(74, 144, 226, 0.15); color: #4a90e2; }
+
+.hint-suggest {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  border-radius: 999px;
+  padding: 4px 10px;
+  font-size: 0.78rem;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.hint-suggest:hover {
+  background: var(--btn);
+  border-color: var(--accent);
+}
+
 .status {
   width: 100%;
   max-width: 460px;
@@ -423,6 +469,72 @@ body {
   padding: 0 8px;
   font-size: 0.72rem;
   font-weight: 600;
+}
+
+/* ---------- Prioridad y etiquetas ---------- */
+
+.priority-flag {
+  display: inline-flex;
+  margin-right: 6px;
+  vertical-align: -1px;
+}
+
+.priority-flag svg {
+  width: 13px;
+  height: 13px;
+}
+
+.priority-flag.p1 { color: #e63946; }
+.priority-flag.p2 { color: #f4a52a; }
+.priority-flag.p3 { color: #4a90e2; }
+
+.label-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 5px;
+}
+
+.label-chip {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--btn);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.edit-priority-picker {
+  display: flex;
+  gap: 6px;
+}
+
+.priority-pick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-alt);
+  color: var(--text-dim);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.priority-pick svg {
+  width: 12px;
+  height: 12px;
+}
+
+.priority-pick.p1 svg { color: #e63946; }
+.priority-pick.p2 svg { color: #f4a52a; }
+.priority-pick.p3 svg { color: #4a90e2; }
+
+.priority-pick.active {
+  border-color: var(--accent);
+  color: var(--text);
 }
 
 /* ---------- Edit form ---------- */
