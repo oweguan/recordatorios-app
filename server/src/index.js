@@ -63,11 +63,15 @@ async function syncDeleteFromCalendar(reminder) {
 
 async function syncAllPendingToCalendar() {
   const all = await listReminders();
-  const pendingWithoutEvent = all.filter((r) => r.status === 'pending' && !r.google_event_id);
+  const pending = all.filter((r) => r.status === 'pending');
 
   let synced = 0;
-  for (const reminder of pendingWithoutEvent) {
+  for (const reminder of pending) {
     try {
+      if (reminder.google_event_id) {
+        // recrea el evento para asegurarse de que vive en el calendario "Tareas"
+        await deleteCalendarEvent(reminder.google_event_id);
+      }
       const eventId = await createCalendarEvent(reminder);
       await updateReminderGoogleEventId(reminder.id, eventId);
       synced++;

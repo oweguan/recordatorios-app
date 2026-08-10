@@ -4,7 +4,7 @@ import { getGoogleAuth, saveGoogleAuth, listReminders } from './db/index.js';
 
 const SCOPES = [
   'https://www.googleapis.com/auth/drive.file',
-  'https://www.googleapis.com/auth/calendar.events',
+  'https://www.googleapis.com/auth/calendar',
 ];
 
 const BACKUP_FOLDER_NAME = 'Recordatorios App - Backups';
@@ -140,6 +140,46 @@ export async function downloadDriveBackup(fileId) {
 
 // --- Calendar: sincronizacion de recordatorios ---
 
+const TASKS_CALENDAR_NAME = 'Tareas';
+const TASKS_CALENDAR_COLOR = '#16a765'; // verde
+
+let cachedCalendarId = null;
+
+async function findOrCreateTasksCalendar(token) {
+  if (cachedCalendarId) return cachedCalendarId;
+
+  const listRes = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList?minAccessRole=owner', {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  const listData = await listRes.json();
+  const existing = (listData.items || []).find(
+    (cal) => cal.summary?.toLowerCase() === TASKS_CALENDAR_NAME.toLowerCase()
+  );
+  if (existing) {
+    cachedCalendarId = existing.id;
+    return cachedCalendarId;
+  }
+
+  const createRes = await fetch('https://www.googleapis.com/calendar/v3/calendars', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ summary: TASKS_CALENDAR_NAME }),
+  });
+  const created = await createRes.json();
+
+  await fetch(
+    `https://www.googleapis.com/calendar/v3/users/me/calendarList/${encodeURIComponent(created.id)}?colorRgbFormat=true`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ backgroundColor: TASKS_CALENDAR_COLOR, foregroundColor: '#ffffff' }),
+    }
+  ).catch(() => {});
+
+  cachedCalendarId = created.id;
+  return cachedCalendarId;
+}
+
 function toCalendarEvent(reminder) {
   const start = new Date(reminder.due_at);
   const end = new Date(start.getTime() + 30 * 60000);
@@ -152,7 +192,8 @@ function toCalendarEvent(reminder) {
 
 export async function createCalendarEvent(reminder) {
   const token = await getAccessToken();
-  const res = await fetch('https://www.googleapis.com/calendar/v3/calendars/primary/events', {
+  const calendarId = await findOrCreateTasksCalendar(token);
+  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
     body: JSON.stringify(toCalendarEvent(reminder)),
@@ -166,11 +207,15 @@ export async function createCalendarEvent(reminder) {
 
 export async function updateCalendarEvent(eventId, reminder) {
   const token = await getAccessToken();
-  const res = await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
-    method: 'PATCH',
-    headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify(toCalendarEvent(reminder)),
-  });
+  const calendarId = await findOrCreateTasksCalendar(token);
+  const res = await fetch(
+    `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`,
+    {
+      method: 'PATCH',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(toCalendarEvent(reminder)),
+    }
+  );
   if (!res.ok) {
     throw new Error(`Calendar update error: ${res.status}`);
   }
@@ -178,6 +223,13 @@ export async function updateCalendarEvent(eventId, reminder) {
 
 export async function deleteCalendarEvent(eventId) {
   const token = await getAccessToken();
+  const calendarId = await findOrCreateTasksCalendar(token);
+  await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events/${eventId}`, {
+    method: 'DELETE',
+    headers: { Authorization: `Bearer ${token}` },
+  }).catch(() => {});
+
+  // por si el evento quedo en el calendario principal de una version anterior
   await fetch(`https://www.googleapis.com/calendar/v3/calendars/primary/events/${eventId}`, {
     method: 'DELETE',
     headers: { Authorization: `Bearer ${token}` },
