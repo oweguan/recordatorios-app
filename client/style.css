@@ -255,6 +255,23 @@ body {
   margin-bottom: 12px;
 }
 
+.reminders-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.reminders-header h2 {
+  margin-bottom: 0;
+}
+
+.reminders-header .icon-button {
+  width: 36px;
+  height: 36px;
+  font-size: 1rem;
+  margin-bottom: 12px;
+}
+
 .day-group {
   margin-bottom: 18px;
 }

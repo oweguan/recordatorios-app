@@ -48,6 +48,24 @@ export function sendReminderMessage(chatId, id, task, dueAt, recurrence) {
   });
 }
 
+export function sendDailySummaryMessage(chatId, reminders) {
+  if (reminders.length === 0) {
+    return bot.sendMessage(chatId, '🌅 Buenos días. No tienes recordatorios pendientes para hoy.');
+  }
+
+  const lines = reminders.map((r) => {
+    const hora = new Date(r.due_at).toLocaleString('es-ES', {
+      timeZone: 'Europe/Madrid',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+    return `• ${r.task} — ${hora}`;
+  });
+
+  const message = `🌅 Buenos días. Hoy tienes ${reminders.length} recordatorio${reminders.length === 1 ? '' : 's'}:\n\n${lines.join('\n')}`;
+  return bot.sendMessage(chatId, message);
+}
+
 export async function handleCallbackQuery(query) {
   const [action, idStr, extra] = query.data.split(':');
   const id = Number(idStr);

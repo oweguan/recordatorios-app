@@ -17,7 +17,7 @@ import {
 } from './db/index.js';
 import { parseReminderText } from './parser.js';
 import { parseWithLLM } from './llmParser.js';
-import { startScheduler } from './scheduler.js';
+import { startScheduler, sendDailySummary } from './scheduler.js';
 import { isPushEnabled } from './push.js';
 import {
   isGoogleConfigured,
@@ -89,6 +89,16 @@ app.use(express.static(clientDir));
 
 app.get('/health', (req, res) => {
   res.json({ ok: true, time: new Date().toISOString() });
+});
+
+app.post('/api/daily-summary/send-now', async (req, res) => {
+  try {
+    await sendDailySummary();
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('Error enviando resumen diario:', err.message);
+    res.status(502).json({ error: 'No se pudo enviar el resumen' });
+  }
 });
 
 app.post('/api/transcribe', upload.single('audio'), async (req, res) => {

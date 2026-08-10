@@ -1,6 +1,6 @@
 import cron from 'node-cron';
-import { getDueReminders, markSent, rescheduleRecurring } from './db/index.js';
-import { sendReminderMessage } from './telegram.js';
+import { getDueReminders, markSent, rescheduleRecurring, listReminders } from './db/index.js';
+import { sendReminderMessage, sendDailySummaryMessage } from './telegram.js';
 import { sendPushToAll } from './push.js';
 
 const RECURRENCE_MS = {
@@ -17,6 +17,23 @@ function formatMadridTime(date) {
     hour: '2-digit',
     minute: '2-digit',
   });
+}
+
+function isTodayInMadrid(dueAtIso) {
+  const fmt = (d) => d.toLocaleDateString('en-CA', { timeZone: 'Europe/Madrid' });
+  return fmt(new Date()) === fmt(new Date(dueAtIso));
+}
+
+export async function sendDailySummary() {
+  const chatId = process.env.OWNER_CHAT_ID;
+  if (!chatId) return;
+
+  const all = await listReminders();
+  const todayPending = all
+    .filter((r) => r.status === 'pending' && isTodayInMadrid(r.due_at))
+    .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+
+  await sendDailySummaryMessage(chatId, todayPending);
 }
 
 export function startScheduler() {
@@ -55,5 +72,13 @@ export function startScheduler() {
     }
   });
 
-  console.log('Scheduler activo: revisando recordatorios cada minuto.');
+  cron.schedule(
+    '0 9 * * *',
+    () => {
+      sendDailySummary().catch((err) => console.error('Error enviando resumen diario:', err.message));
+    },
+    { timezone: 'Europe/Madrid' }
+  );
+
+  console.log('Scheduler activo: revisando recordatorios cada minuto y resumen diario a las 9:00 (Madrid).');
 }

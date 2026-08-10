@@ -436,11 +436,14 @@ function renderGroupedReminders(pending) {
     .join('');
 }
 
+let latestPendingReminders = [];
+
 async function loadReminders() {
   try {
     const res = await fetch('/api/reminders');
     const reminders = await res.json();
     const pending = reminders.filter((r) => r.status === 'pending');
+    latestPendingReminders = pending;
 
     if (pending.length === 0) {
       remindersList.innerHTML = '<div class="empty">No tienes recordatorios pendientes 🎉</div>';
@@ -452,6 +455,38 @@ async function loadReminders() {
     remindersList.innerHTML = '<div class="empty">No se pudieron cargar los recordatorios</div>';
   }
 }
+
+const readTodayBtn = document.getElementById('readTodayBtn');
+
+function speak(text) {
+  if (!('speechSynthesis' in window)) {
+    statusEl.textContent = 'Tu navegador no soporta lectura en voz alta.';
+    return;
+  }
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = 'es-ES';
+  window.speechSynthesis.speak(utterance);
+}
+
+readTodayBtn.addEventListener('click', () => {
+  const today = latestPendingReminders
+    .filter((r) => dayBucket(r.due_at) === 'Hoy')
+    .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+
+  if (today.length === 0) {
+    speak('No tienes recordatorios pendientes para hoy.');
+    return;
+  }
+
+  const parts = today.map((r) => {
+    const hora = new Date(r.due_at).toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+    return `${r.task} a las ${hora}`;
+  });
+
+  const intro = `Tienes ${today.length} tarea${today.length === 1 ? '' : 's'} para hoy: `;
+  speak(intro + parts.join('. '));
+});
 
 remindersList.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
