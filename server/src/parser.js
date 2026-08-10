@@ -27,6 +27,40 @@ function cleanTask(raw) {
     .trim();
 }
 
+const WEEKDAY_RECURRENCE = /\b(todos los|cada)\s+(lunes|martes|mi[ée]rcoles|jueves|viernes|s[áa]bados?|domingos?)\b/i;
+const RECURRENCE_PATTERNS = [
+  { regex: /\b(todos los d[ií]as|cada d[ií]a|diariamente)\b/i, value: 'daily' },
+  { regex: /\b(todas las semanas|cada semana|semanalmente)\b/i, value: 'weekly' },
+  { regex: /\b(todos los meses|cada mes|mensualmente)\b/i, value: 'monthly' },
+];
+
+// Detecta frases como "todos los lunes", "cada dia" o "cada mes" y las separa del resto del texto.
+function extractRecurrence(text) {
+  const weekdayMatch = text.match(WEEKDAY_RECURRENCE);
+  if (weekdayMatch) {
+    let weekday = weekdayMatch[2].toLowerCase().normalize('NFC');
+    if (weekday === 'sábados' || weekday === 'sabados') weekday = weekday.slice(0, -1);
+    if (weekday === 'domingos') weekday = 'domingo';
+
+    const cleaned = (text.slice(0, weekdayMatch.index) + weekday + text.slice(weekdayMatch.index + weekdayMatch[0].length))
+      .replace(/\s+/g, ' ')
+      .trim();
+    return { recurrence: 'weekly', text: cleaned };
+  }
+
+  for (const { regex, value } of RECURRENCE_PATTERNS) {
+    const match = text.match(regex);
+    if (match) {
+      const cleaned = (text.slice(0, match.index) + text.slice(match.index + match[0].length))
+        .replace(/\s+/g, ' ')
+        .trim();
+      return { recurrence: value, text: cleaned };
+    }
+  }
+
+  return { recurrence: null, text };
+}
+
 // Detecta frases como "20 minutos antes" o "media hora antes" y las separa del resto del texto.
 function extractLeadTime(text) {
   const match = text.match(LEAD_TIME);
@@ -49,13 +83,14 @@ function extractLeadTime(text) {
 // Extrae la fecha/hora de un texto en espanol y devuelve la tarea limpia (sin la parte de fecha).
 export function parseReminderText(text, referenceDate = new Date()) {
   const withoutTrigger = text.replace(LEADING_TRIGGER, '');
-  const { leadMinutes, text: withoutLeadTime } = extractLeadTime(withoutTrigger);
+  const { recurrence, text: withoutRecurrence } = extractRecurrence(withoutTrigger);
+  const { leadMinutes, text: withoutLeadTime } = extractLeadTime(withoutRecurrence);
   const normalized = normalizeTimeOfDay(withoutLeadTime);
 
   const results = chrono.es.parse(normalized, referenceDate, { forwardDate: true });
 
   if (results.length === 0) {
-    return { task: cleanTask(normalized), dueAt: null, notifyAt: null, leadMinutes, matchedText: null };
+    return { task: cleanTask(normalized), dueAt: null, notifyAt: null, leadMinutes, recurrence, matchedText: null };
   }
 
   const match = results[0];
@@ -70,6 +105,7 @@ export function parseReminderText(text, referenceDate = new Date()) {
     dueAt,
     notifyAt,
     leadMinutes,
+    recurrence,
     matchedText: match.text,
   };
 }

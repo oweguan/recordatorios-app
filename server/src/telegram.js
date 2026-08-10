@@ -8,7 +8,15 @@ if (!token) {
 
 export const bot = new TelegramBot(token, { polling: false });
 
-export function sendReminderMessage(chatId, task, dueAt) {
+const RECURRENCE_LABEL = {
+  daily: 'se repite cada día',
+  weekly: 'se repite cada semana',
+  monthly: 'se repite cada mes',
+};
+
+export function sendReminderMessage(chatId, task, dueAt, recurrence) {
+  const parts = [];
+
   if (dueAt) {
     const hora = dueAt.toLocaleString('es-ES', {
       timeZone: 'Europe/Madrid',
@@ -17,7 +25,13 @@ export function sendReminderMessage(chatId, task, dueAt) {
       hour: '2-digit',
       minute: '2-digit',
     });
-    return bot.sendMessage(chatId, `Recordatorio: ${task} (hoy a las ${hora})`);
+    parts.push(`hoy a las ${hora}`);
   }
-  return bot.sendMessage(chatId, `Recordatorio: ${task}`);
+
+  if (recurrence && RECURRENCE_LABEL[recurrence]) {
+    parts.push(RECURRENCE_LABEL[recurrence]);
+  }
+
+  const suffix = parts.length > 0 ? ` (${parts.join(', ')})` : '';
+  return bot.sendMessage(chatId, `Recordatorio: ${task}${suffix}`);
 }

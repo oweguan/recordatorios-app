@@ -16,7 +16,12 @@ export function startScheduler() {
     for (const reminder of due) {
       try {
         const isEarlyNotice = new Date(reminder.notify_at).getTime() < new Date(reminder.due_at).getTime();
-        await sendReminderMessage(reminder.chat_id, reminder.task, isEarlyNotice ? new Date(reminder.due_at) : null);
+        await sendReminderMessage(
+          reminder.chat_id,
+          reminder.task,
+          isEarlyNotice ? new Date(reminder.due_at) : null,
+          reminder.recurrence
+        );
         console.log(`Enviado recordatorio #${reminder.id}: ${reminder.task}`);
 
         if (reminder.recurrence && RECURRENCE_MS[reminder.recurrence]) {

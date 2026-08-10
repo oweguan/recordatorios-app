@@ -134,6 +134,15 @@ h1 {
   font-weight: 500;
 }
 
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
 .reminder-item .due {
   color: var(--text-dim);
   font-size: 0.85rem;

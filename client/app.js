@@ -83,7 +83,8 @@ async function submitReminder(text) {
     }
 
     const leadNote = data.leadMinutes > 0 ? ` — aviso ${data.leadMinutes} min antes` : '';
-    statusEl.textContent = `Guardado: "${data.reminder.task}" — entendido como "${data.interpretedAs}"${leadNote}`;
+    const recurrenceNote = RECURRENCE_LABEL[data.reminder.recurrence] ? ` — ${RECURRENCE_LABEL[data.reminder.recurrence]}` : '';
+    statusEl.textContent = `Guardado: "${data.reminder.task}" — entendido como "${data.interpretedAs}"${leadNote}${recurrenceNote}`;
     transcriptEl.textContent = '';
     loadReminders();
   } catch (err) {
@@ -108,11 +109,14 @@ function toDatetimeLocalValue(iso) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
+const RECURRENCE_LABEL = { daily: '🔁 cada día', weekly: '🔁 cada semana', monthly: '🔁 cada mes' };
+
 function renderReminderView(r) {
+  const recurrenceBadge = RECURRENCE_LABEL[r.recurrence] ? `<span class="badge">${RECURRENCE_LABEL[r.recurrence]}</span>` : '';
   return `
     <div class="reminder-item" data-id="${r.id}">
       <div class="reminder-main">
-        <span class="task">${escapeHtml(r.task)}</span>
+        <span class="task">${escapeHtml(r.task)}${recurrenceBadge}</span>
         <span class="due">${formatDue(r.due_at)}</span>
       </div>
       <div class="reminder-actions">

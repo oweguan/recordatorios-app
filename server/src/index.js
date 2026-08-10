@@ -25,7 +25,7 @@ app.post('/api/reminders', async (req, res) => {
     return res.status(400).json({ error: 'Faltan campos: text es obligatorio y no hay OWNER_CHAT_ID configurado' });
   }
 
-  const { task, dueAt, notifyAt, leadMinutes, matchedText } = parseReminderText(text);
+  const { task, dueAt, notifyAt, leadMinutes, recurrence, matchedText } = parseReminderText(text);
 
   if (!dueAt) {
     return res.status(422).json({
@@ -39,7 +39,7 @@ app.post('/api/reminders', async (req, res) => {
     task,
     dueAt: dueAt.toISOString(),
     notifyAt: notifyAt.toISOString(),
-    recurrence: req.body.recurrence ?? null,
+    recurrence: req.body.recurrence ?? recurrence,
     chatId,
   });
 
