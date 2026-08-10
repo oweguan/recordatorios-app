@@ -4,6 +4,27 @@ const transcriptEl = document.getElementById('transcript');
 const textForm = document.getElementById('textForm');
 const textInput = document.getElementById('textInput');
 const remindersList = document.getElementById('remindersList');
+const waveformEl = document.getElementById('waveform');
+const themeToggle = document.getElementById('themeToggle');
+
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
+}
+
+const savedTheme = localStorage.getItem('theme');
+if (savedTheme) {
+  applyTheme(savedTheme);
+} else {
+  const prefersLight = window.matchMedia('(prefers-color-scheme: light)').matches;
+  applyTheme(prefersLight ? 'light' : 'dark');
+}
+
+themeToggle.addEventListener('click', () => {
+  const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+  applyTheme(next);
+  localStorage.setItem('theme', next);
+});
 
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
@@ -18,6 +39,7 @@ if (SpeechRecognition) {
   recognition.onstart = () => {
     listening = true;
     micBtn.classList.add('listening');
+    waveformEl.classList.add('active');
     statusEl.textContent = 'Escuchando...';
     transcriptEl.textContent = '';
   };
@@ -41,6 +63,7 @@ if (SpeechRecognition) {
   recognition.onend = () => {
     listening = false;
     micBtn.classList.remove('listening');
+    waveformEl.classList.remove('active');
     if (statusEl.textContent === 'Escuchando...') {
       statusEl.textContent = 'Pulsa el micrófono y di tu recordatorio';
     }
@@ -143,6 +166,31 @@ function renderReminderEdit(r) {
     </div>`;
 }
 
+const DAY_BUCKETS = ['Hoy', 'Mañana', 'Esta semana', 'Más adelante'];
+
+function dayBucket(iso) {
+  const startOfDay = (d) => new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const diffDays = Math.round((startOfDay(new Date(iso)) - startOfDay(new Date())) / 86400000);
+  if (diffDays <= 0) return 'Hoy';
+  if (diffDays === 1) return 'Mañana';
+  if (diffDays <= 7) return 'Esta semana';
+  return 'Más adelante';
+}
+
+function renderGroupedReminders(pending) {
+  const groups = { 'Hoy': [], 'Mañana': [], 'Esta semana': [], 'Más adelante': [] };
+  for (const r of pending) groups[dayBucket(r.due_at)].push(r);
+
+  return DAY_BUCKETS.filter((label) => groups[label].length > 0)
+    .map((label) => {
+      const items = groups[label]
+        .map((r) => (editingIds.has(r.id) ? renderReminderEdit(r) : renderReminderView(r)))
+        .join('');
+      return `<div class="day-group"><h3 class="day-label">${label}</h3>${items}</div>`;
+    })
+    .join('');
+}
+
 async function loadReminders() {
   try {
     const res = await fetch('/api/reminders');
@@ -150,13 +198,11 @@ async function loadReminders() {
     const pending = reminders.filter((r) => r.status === 'pending');
 
     if (pending.length === 0) {
-      remindersList.innerHTML = '<div class="empty">No tienes recordatorios pendientes</div>';
+      remindersList.innerHTML = '<div class="empty">No tienes recordatorios pendientes 🎉</div>';
       return;
     }
 
-    remindersList.innerHTML = pending
-      .map((r) => (editingIds.has(r.id) ? renderReminderEdit(r) : renderReminderView(r)))
-      .join('');
+    remindersList.innerHTML = renderGroupedReminders(pending);
   } catch (err) {
     remindersList.innerHTML = '<div class="empty">No se pudieron cargar los recordatorios</div>';
   }

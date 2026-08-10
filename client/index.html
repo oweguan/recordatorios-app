@@ -11,11 +11,19 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <h1>Mis Recordatorios</h1>
+  <header class="app-header">
+    <h1>Mis Recordatorios</h1>
+    <button id="themeToggle" class="theme-toggle" aria-label="Cambiar tema" title="Cambiar tema">🌙</button>
+  </header>
 
-  <button id="micBtn" class="mic-button" aria-label="Grabar recordatorio por voz">🎙️</button>
-  <div id="status" class="status">Pulsa el micrófono y di tu recordatorio</div>
-  <div id="transcript" class="transcript"></div>
+  <div class="voice-card">
+    <button id="micBtn" class="mic-button" aria-label="Grabar recordatorio por voz">🎙️</button>
+    <div id="waveform" class="waveform" aria-hidden="true">
+      <span></span><span></span><span></span><span></span><span></span>
+    </div>
+    <div id="status" class="status">Pulsa el micrófono y di tu recordatorio</div>
+    <div id="transcript" class="transcript"></div>
+  </div>
 
   <form id="textForm" class="text-fallback">
     <input id="textInput" type="text" placeholder="O escribe: recuérdame... mañana a las 9" autocomplete="off" />
