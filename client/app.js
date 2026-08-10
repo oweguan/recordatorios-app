@@ -26,6 +26,83 @@ themeToggle.addEventListener('click', () => {
   localStorage.setItem('theme', next);
 });
 
+const pushToggle = document.getElementById('pushToggle');
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+  const rawData = atob(base64);
+  return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
+}
+
+async function refreshPushButtonState() {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    pushToggle.disabled = true;
+    pushToggle.title = 'Tu navegador no soporta notificaciones push';
+    return;
+  }
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  pushToggle.classList.toggle('active', Boolean(subscription));
+  pushToggle.title = subscription ? 'Desactivar notificaciones push' : 'Activar notificaciones push';
+}
+
+async function subscribeToPush() {
+  const keyRes = await fetch('/api/push/vapid-public-key');
+  if (!keyRes.ok) {
+    statusEl.textContent = 'Las notificaciones push no están configuradas en el servidor.';
+    return;
+  }
+  const { publicKey } = await keyRes.json();
+
+  const permission = await Notification.requestPermission();
+  if (permission !== 'granted') {
+    statusEl.textContent = 'No has dado permiso para notificaciones.';
+    return;
+  }
+
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.subscribe({
+    userVisibleOnly: true,
+    applicationServerKey: urlBase64ToUint8Array(publicKey),
+  });
+
+  await fetch('/api/push/subscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(subscription.toJSON()),
+  });
+
+  statusEl.textContent = 'Notificaciones push activadas.';
+}
+
+async function unsubscribeFromPush() {
+  const registration = await navigator.serviceWorker.ready;
+  const subscription = await registration.pushManager.getSubscription();
+  if (!subscription) return;
+
+  await fetch('/api/push/unsubscribe', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ endpoint: subscription.endpoint }),
+  });
+  await subscription.unsubscribe();
+  statusEl.textContent = 'Notificaciones push desactivadas.';
+}
+
+pushToggle.addEventListener('click', async () => {
+  try {
+    if (pushToggle.classList.contains('active')) {
+      await unsubscribeFromPush();
+    } else {
+      await subscribeToPush();
+    }
+  } catch (err) {
+    statusEl.textContent = 'Error activando notificaciones: ' + err.message;
+  }
+  refreshPushButtonState();
+});
+
 const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 let recognition = null;
 let listening = false;
@@ -256,7 +333,11 @@ function escapeHtml(str) {
 }
 
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js').catch(() => {});
+  navigator.serviceWorker.register('/sw.js').then(() => {
+    refreshPushButtonState();
+  }).catch(() => {});
+} else {
+  pushToggle.disabled = true;
 }
 
 loadReminders();

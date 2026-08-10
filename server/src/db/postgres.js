@@ -22,6 +22,34 @@ export async function init() {
   `);
   await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS notify_at TEXT`);
   await pool.query(`UPDATE reminders SET notify_at = due_at WHERE notify_at IS NULL`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS push_subscriptions (
+      id SERIAL PRIMARY KEY,
+      endpoint TEXT NOT NULL UNIQUE,
+      p256dh TEXT NOT NULL,
+      auth TEXT NOT NULL,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+}
+
+export async function savePushSubscription({ endpoint, p256dh, auth }) {
+  await pool.query(
+    `INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth`,
+    [endpoint, p256dh, auth]
+  );
+}
+
+export async function listPushSubscriptions() {
+  const result = await pool.query('SELECT * FROM push_subscriptions');
+  return result.rows;
+}
+
+export async function deletePushSubscription(endpoint) {
+  await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [endpoint]);
 }
 
 export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId }) {

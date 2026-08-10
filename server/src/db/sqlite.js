@@ -27,7 +27,33 @@ try {
 }
 db.exec(`UPDATE reminders SET notify_at = due_at WHERE notify_at IS NULL`);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    endpoint TEXT NOT NULL UNIQUE,
+    p256dh TEXT NOT NULL,
+    auth TEXT NOT NULL,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
 export async function init() {}
+
+export async function savePushSubscription({ endpoint, p256dh, auth }) {
+  db.prepare(`
+    INSERT INTO push_subscriptions (endpoint, p256dh, auth)
+    VALUES (?, ?, ?)
+    ON CONFLICT(endpoint) DO UPDATE SET p256dh = excluded.p256dh, auth = excluded.auth
+  `).run(endpoint, p256dh, auth);
+}
+
+export async function listPushSubscriptions() {
+  return db.prepare('SELECT * FROM push_subscriptions').all();
+}
+
+export async function deletePushSubscription(endpoint) {
+  db.prepare('DELETE FROM push_subscriptions WHERE endpoint = ?').run(endpoint);
+}
 
 export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId }) {
   const stmt = db.prepare(`

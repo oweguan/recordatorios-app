@@ -12,4 +12,7 @@ export const {
   rescheduleRecurring,
   updateReminder,
   deleteReminder,
+  savePushSubscription,
+  listPushSubscriptions,
+  deletePushSubscription,
 } = impl;

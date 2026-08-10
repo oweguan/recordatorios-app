@@ -1,12 +1,23 @@
 import cron from 'node-cron';
 import { getDueReminders, markSent, rescheduleRecurring } from './db/index.js';
 import { sendReminderMessage } from './telegram.js';
+import { sendPushToAll } from './push.js';
 
 const RECURRENCE_MS = {
   daily: 24 * 60 * 60 * 1000,
   weekly: 7 * 24 * 60 * 60 * 1000,
   monthly: 30 * 24 * 60 * 60 * 1000,
 };
+
+function formatMadridTime(date) {
+  return date.toLocaleString('es-ES', {
+    timeZone: 'Europe/Madrid',
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 export function startScheduler() {
   cron.schedule('* * * * *', async () => {
@@ -23,6 +34,11 @@ export function startScheduler() {
           isEarlyNotice ? new Date(reminder.due_at) : null,
           reminder.recurrence
         );
+        const pushBody = isEarlyNotice
+          ? `${reminder.task} (hoy a las ${formatMadridTime(new Date(reminder.due_at))})`
+          : reminder.task;
+        await sendPushToAll({ title: 'Recordatorio', body: pushBody });
+
         console.log(`Enviado recordatorio #${reminder.id}: ${reminder.task}`);
 
         if (reminder.recurrence && RECURRENCE_MS[reminder.recurrence]) {

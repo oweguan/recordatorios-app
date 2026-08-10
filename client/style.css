@@ -69,7 +69,12 @@ body {
   margin: 0;
 }
 
-.theme-toggle {
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.icon-button {
   width: 40px;
   height: 40px;
   border-radius: 50%;
@@ -80,11 +85,21 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: background 0.15s;
+  transition: background 0.15s, opacity 0.15s;
 }
 
-.theme-toggle:hover {
+.icon-button:hover {
   background: var(--btn-hover);
+}
+
+.icon-button.active {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.icon-button:disabled {
+  opacity: 0.4;
+  cursor: default;
 }
 
 .voice-card {

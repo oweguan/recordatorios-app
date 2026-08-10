@@ -2,10 +2,20 @@ import 'dotenv/config';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
-import { init, createReminder, listReminders, getReminderById, updateReminder, deleteReminder } from './db/index.js';
+import {
+  init,
+  createReminder,
+  listReminders,
+  getReminderById,
+  updateReminder,
+  deleteReminder,
+  savePushSubscription,
+  deletePushSubscription,
+} from './db/index.js';
 import { parseReminderText } from './parser.js';
 import { parseWithLLM } from './llmParser.js';
 import { startScheduler } from './scheduler.js';
+import { isPushEnabled } from './push.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(__dirname, '..', '..', 'client');
@@ -114,6 +124,31 @@ app.post('/api/reminders/:id/postpone', async (req, res) => {
 
   const updated = await updateReminder(id, { task: existing.task, dueAt, notifyAt });
   res.json(updated);
+});
+
+app.get('/api/push/vapid-public-key', (req, res) => {
+  if (!isPushEnabled()) {
+    return res.status(404).json({ error: 'Push no configurado en el servidor' });
+  }
+  res.json({ publicKey: process.env.VAPID_PUBLIC_KEY });
+});
+
+app.post('/api/push/subscribe', async (req, res) => {
+  const { endpoint, keys } = req.body;
+  if (!endpoint || !keys || !keys.p256dh || !keys.auth) {
+    return res.status(400).json({ error: 'Suscripción inválida' });
+  }
+  await savePushSubscription({ endpoint, p256dh: keys.p256dh, auth: keys.auth });
+  res.status(201).json({ ok: true });
+});
+
+app.post('/api/push/unsubscribe', async (req, res) => {
+  const { endpoint } = req.body;
+  if (!endpoint) {
+    return res.status(400).json({ error: 'endpoint es obligatorio' });
+  }
+  await deletePushSubscription(endpoint);
+  res.status(204).end();
 });
 
 app.delete('/api/reminders/:id', async (req, res) => {
