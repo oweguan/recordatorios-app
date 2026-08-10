@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>Mis Recordatorios</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <meta name="theme-color" content="#4f46e5" />
+  <link rel="stylesheet" href="/style.css" />
+</head>
+<body>
+  <h1>Mis Recordatorios</h1>
+
+  <button id="micBtn" class="mic-button" aria-label="Grabar recordatorio por voz">🎙️</button>
+  <div id="status" class="status">Pulsa el micrófono y di tu recordatorio</div>
+  <div id="transcript" class="transcript"></div>
+
+  <form id="textForm" class="text-fallback">
+    <input id="textInput" type="text" placeholder="O escribe: recuérdame... mañana a las 9" autocomplete="off" />
+    <button type="submit">Enviar</button>
+  </form>
+
+  <div class="reminders">
+    <h2>Próximos recordatorios</h2>
+    <div id="remindersList"></div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>

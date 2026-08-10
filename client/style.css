@@ -1,0 +1,141 @@
+:root {
+  --bg: #0f0f14;
+  --card: #1a1a24;
+  --accent: #4f46e5;
+  --accent-active: #ef4444;
+  --text: #f1f1f5;
+  --text-dim: #9494a8;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px 16px 48px;
+}
+
+h1 {
+  font-size: 1.4rem;
+  margin: 8px 0 24px;
+}
+
+.mic-button {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 2.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: transform 0.15s, background 0.15s;
+  box-shadow: 0 8px 24px rgba(79, 70, 229, 0.4);
+}
+
+.mic-button:active {
+  transform: scale(0.96);
+}
+
+.mic-button.listening {
+  background: var(--accent-active);
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.5); }
+  70% { box-shadow: 0 0 0 20px rgba(239, 68, 68, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+}
+
+.status {
+  margin-top: 16px;
+  min-height: 24px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+.transcript {
+  margin-top: 8px;
+  font-size: 1.1rem;
+  text-align: center;
+  min-height: 28px;
+}
+
+.text-fallback {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 32px;
+  display: flex;
+  gap: 8px;
+}
+
+.text-fallback input {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #2c2c3a;
+  background: var(--card);
+  color: var(--text);
+  font-size: 1rem;
+}
+
+.text-fallback button {
+  padding: 12px 18px;
+  border-radius: 10px;
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.reminders {
+  width: 100%;
+  max-width: 420px;
+  margin-top: 40px;
+}
+
+.reminders h2 {
+  font-size: 1rem;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+
+.reminder-item {
+  background: var(--card);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.reminder-item .task {
+  font-weight: 500;
+}
+
+.reminder-item .due {
+  color: var(--text-dim);
+  font-size: 0.85rem;
+  white-space: nowrap;
+}
+
+.empty {
+  color: var(--text-dim);
+  text-align: center;
+  padding: 12px;
+}

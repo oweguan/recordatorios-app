@@ -1,0 +1,21 @@
+{
+  "name": "recordatorios-server",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "scripts": {
+    "start": "node src/index.js",
+    "connect-telegram": "node src/connect-telegram.js"
+  },
+  "dependencies": {
+    "chrono-node": "^2.10.1",
+    "dotenv": "^17.4.2",
+    "express": "^5.2.1",
+    "node-cron": "^4.6.0",
+    "node-telegram-bot-api": "^1.2.0",
+    "pg": "^8.23.0"
+  }
+}
