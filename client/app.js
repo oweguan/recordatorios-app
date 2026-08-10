@@ -7,6 +7,24 @@ const remindersList = document.getElementById('remindersList');
 const waveformEl = document.getElementById('waveform');
 const themeToggle = document.getElementById('themeToggle');
 
+const mainView = document.getElementById('mainView');
+const settingsView = document.getElementById('settingsView');
+const settingsToggle = document.getElementById('settingsToggle');
+const settingsBack = document.getElementById('settingsBack');
+
+function showSettings() {
+  mainView.hidden = true;
+  settingsView.hidden = false;
+}
+
+function showMain() {
+  settingsView.hidden = true;
+  mainView.hidden = false;
+}
+
+settingsToggle.addEventListener('click', showSettings);
+settingsBack.addEventListener('click', showMain);
+
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
   themeToggle.textContent = theme === 'light' ? '🌙' : '☀️';
@@ -28,6 +46,7 @@ themeToggle.addEventListener('click', () => {
 
 const googleToggle = document.getElementById('googleToggle');
 const googlePanel = document.getElementById('googlePanel');
+const googleStatusLabel = document.getElementById('googleStatusLabel');
 const backupNowBtn = document.getElementById('backupNowBtn');
 const googleDisconnectBtn = document.getElementById('googleDisconnectBtn');
 const backupsList = document.getElementById('backupsList');
@@ -40,12 +59,14 @@ async function refreshGoogleState() {
     if (!data.configured) {
       googleToggle.disabled = true;
       googleToggle.title = 'Google no está configurado en el servidor';
+      googleStatusLabel.textContent = 'No disponible';
       googlePanel.hidden = true;
       return;
     }
 
     googleToggle.classList.toggle('active', data.connected);
     googleToggle.title = data.connected ? 'Google conectado' : 'Conectar con Google';
+    googleStatusLabel.textContent = data.connected ? 'Conectado' : 'No conectado';
     googlePanel.hidden = !data.connected;
 
     if (data.connected) loadBackups();
@@ -128,10 +149,11 @@ backupsList.addEventListener('click', async (e) => {
 {
   const params = new URLSearchParams(window.location.search);
   if (params.get('google') === 'connected') {
-    statusEl.textContent = 'Google conectado correctamente.';
+    showSettings();
     window.history.replaceState({}, '', window.location.pathname);
   } else if (params.get('google') === 'error') {
-    statusEl.textContent = 'No se pudo conectar con Google, inténtalo de nuevo.';
+    showSettings();
+    alert('No se pudo conectar con Google, inténtalo de nuevo.');
     window.history.replaceState({}, '', window.location.pathname);
   }
 }
