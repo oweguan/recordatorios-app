@@ -145,25 +145,21 @@ app.post('/api/reminders', async (req, res) => {
 
   const { task, dueAt, notifyAt, leadMinutes, recurrence, matchedText } = parsed;
 
-  if (!dueAt) {
-    return res.status(422).json({
-      error: 'No se pudo entender ninguna fecha/hora en el texto',
-      task,
-    });
-  }
-
+  // Sin fecha detectada: se guarda igualmente en la Bandeja de entrada, sin aviso programado.
   const reminder = await createReminder({
     originalText: text,
-    task,
-    dueAt: dueAt.toISOString(),
-    notifyAt: notifyAt.toISOString(),
+    task: task || text,
+    dueAt: dueAt ? dueAt.toISOString() : null,
+    notifyAt: dueAt ? notifyAt.toISOString() : null,
     recurrence: req.body.recurrence ?? recurrence,
     chatId,
   });
 
-  syncCreateToCalendar(reminder);
+  if (dueAt) {
+    syncCreateToCalendar(reminder);
+  }
 
-  res.status(201).json({ reminder, interpretedAs: matchedText, leadMinutes, usedLLM });
+  res.status(201).json({ reminder, interpretedAs: matchedText, leadMinutes, usedLLM, inbox: !dueAt });
 });
 
 app.get('/api/reminders', async (req, res) => {
@@ -178,19 +174,26 @@ app.patch('/api/reminders/:id', async (req, res) => {
     return res.status(404).json({ error: 'Recordatorio no encontrado' });
   }
 
-  const leadDeltaMs = new Date(existing.due_at).getTime() - new Date(existing.notify_at).getTime();
-
   const task = typeof req.body.task === 'string' && req.body.task.trim() ? req.body.task.trim() : existing.task;
   let dueAt = existing.due_at;
   let notifyAt = existing.notify_at;
 
-  if (req.body.dueAt) {
-    const newDueAt = new Date(req.body.dueAt);
-    if (Number.isNaN(newDueAt.getTime())) {
-      return res.status(400).json({ error: 'Fecha no válida' });
+  if (Object.prototype.hasOwnProperty.call(req.body, 'dueAt')) {
+    if (req.body.dueAt === null) {
+      dueAt = null;
+      notifyAt = null;
+    } else {
+      const newDueAt = new Date(req.body.dueAt);
+      if (Number.isNaN(newDueAt.getTime())) {
+        return res.status(400).json({ error: 'Fecha no válida' });
+      }
+      const leadDeltaMs =
+        existing.due_at && existing.notify_at
+          ? new Date(existing.due_at).getTime() - new Date(existing.notify_at).getTime()
+          : 0;
+      dueAt = newDueAt.toISOString();
+      notifyAt = new Date(newDueAt.getTime() - leadDeltaMs).toISOString();
     }
-    dueAt = newDueAt.toISOString();
-    notifyAt = new Date(newDueAt.getTime() - leadDeltaMs).toISOString();
   }
 
   const updated = await updateReminder(id, { task, dueAt, notifyAt });
@@ -209,6 +212,9 @@ app.post('/api/reminders/:id/postpone', async (req, res) => {
   const existing = await getReminderById(id);
   if (!existing) {
     return res.status(404).json({ error: 'Recordatorio no encontrado' });
+  }
+  if (!existing.due_at) {
+    return res.status(400).json({ error: 'Este recordatorio no tiene fecha, asígnale una primero' });
   }
 
   const deltaMs = minutes * 60000;

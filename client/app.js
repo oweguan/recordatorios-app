@@ -13,41 +13,181 @@ const ICONS = {
   repeat: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/></svg>',
   arrowLeft: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>',
   check: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>',
+  inbox: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 16 12 14 15 10 15 8 12 2 12"/><path d="M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z"/></svg>',
+  today: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="3"/><polyline points="8 12 11 15 16 9"/></svg>',
+  calendar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>',
+  search: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>',
+  camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
 };
 
-const micBtn = document.getElementById('micBtn');
+const NAV_ICONS = { inbox: ICONS.inbox, today: ICONS.today, upcoming: ICONS.calendar, explore: ICONS.search };
+
+// ==================== Elementos ====================
+
 const statusEl = document.getElementById('status');
 const transcriptEl = document.getElementById('transcript');
-const textForm = document.getElementById('textForm');
-const textInput = document.getElementById('textInput');
-const remindersList = document.getElementById('remindersList');
-const themeToggle = document.getElementById('themeToggle');
 const todayCountEl = document.getElementById('todayCount');
-
-const mainView = document.getElementById('mainView');
+const onboardingEl = document.getElementById('onboarding');
+const appShellEl = document.getElementById('appShell');
 const settingsView = document.getElementById('settingsView');
 const settingsToggle = document.getElementById('settingsToggle');
 const settingsBack = document.getElementById('settingsBack');
+const themeToggle = document.getElementById('themeToggle');
+
+document.querySelectorAll('.nav-item').forEach((btn) => {
+  btn.querySelector('.nav-icon').innerHTML = NAV_ICONS[btn.dataset.page];
+});
 
 settingsToggle.innerHTML = ICONS.settings;
 settingsBack.innerHTML = ICONS.arrowLeft;
-micBtn.innerHTML = ICONS.mic;
 document.getElementById('readTodayBtn').innerHTML = ICONS.volume;
 document.getElementById('pushToggle').innerHTML = ICONS.bell;
 document.getElementById('googleToggle').innerHTML = ICONS.cloud;
+document.querySelectorAll('[data-action="open-quick-add"]').forEach((btn) => {
+  btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
+});
+document.getElementById('calPrev').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
+document.getElementById('calNext').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+document.getElementById('calWeekdays').innerHTML = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('');
 
-function showSettings() {
-  mainView.hidden = true;
-  settingsView.hidden = false;
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
 }
 
-function showMain() {
-  settingsView.hidden = true;
-  mainView.hidden = false;
+// ==================== Perfil (nombre + foto, local al dispositivo) ====================
+
+function getProfile() {
+  return {
+    name: localStorage.getItem('profileName') || '',
+    photo: localStorage.getItem('profilePhoto') || '',
+  };
 }
 
-settingsToggle.addEventListener('click', showSettings);
-settingsBack.addEventListener('click', showMain);
+function applyProfileToUI() {
+  const { name, photo } = getProfile();
+  const initial = name ? name.trim()[0].toUpperCase() : '?';
+
+  const greeting = document.getElementById('greeting');
+  greeting.textContent = name ? `Hola, ${name}` : 'Hola';
+
+  const avatar = document.getElementById('profileAvatar');
+  const initialEl = document.getElementById('profileInitial');
+  if (photo) {
+    avatar.src = photo;
+    avatar.hidden = false;
+    initialEl.hidden = true;
+  } else {
+    avatar.hidden = true;
+    initialEl.hidden = false;
+    initialEl.textContent = initial;
+  }
+
+  document.getElementById('settingsProfileName').textContent = name || 'Sin nombre';
+  const settingsAvatar = document.getElementById('settingsAvatarPreview');
+  const settingsInitial = document.getElementById('settingsAvatarInitial');
+  if (photo) {
+    settingsAvatar.src = photo;
+    settingsAvatar.hidden = false;
+    settingsInitial.hidden = true;
+  } else {
+    settingsAvatar.hidden = true;
+    settingsInitial.hidden = false;
+    settingsInitial.textContent = initial;
+  }
+}
+
+function readImageAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
+document.getElementById('settingsAvatarBtn').addEventListener('click', () => {
+  document.getElementById('settingsPhotoInput').click();
+});
+
+document.getElementById('settingsPhotoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const dataUrl = await readImageAsDataUrl(file);
+  localStorage.setItem('profilePhoto', dataUrl);
+  applyProfileToUI();
+});
+
+document.getElementById('settingsProfileName').addEventListener('click', () => {
+  const current = getProfile().name;
+  const next = prompt('Tu nombre', current);
+  if (next === null) return;
+  localStorage.setItem('profileName', next.trim());
+  applyProfileToUI();
+});
+
+// ==================== Onboarding ====================
+
+const OB_STEPS = ['welcome', 'personalize', 'features'];
+
+function showObStep(step) {
+  document.querySelectorAll('.ob-step').forEach((el) => {
+    el.hidden = el.dataset.step !== step;
+  });
+  localStorage.setItem('onboardingStep', step);
+}
+
+function startApp() {
+  onboardingEl.hidden = true;
+  appShellEl.hidden = false;
+  applyProfileToUI();
+  switchPage('inbox');
+  refreshData();
+}
+
+if (localStorage.getItem('onboarded') === 'true') {
+  onboardingEl.hidden = true;
+  appShellEl.hidden = false;
+} else {
+  onboardingEl.hidden = false;
+  appShellEl.hidden = true;
+  showObStep(localStorage.getItem('onboardingStep') || 'welcome');
+}
+
+onboardingEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('button[data-action]');
+  if (!btn) return;
+  if (btn.dataset.action === 'ob-next') {
+    if (btn.closest('.ob-step').dataset.step === 'personalize') {
+      const name = document.getElementById('obNameInput').value.trim();
+      if (name) localStorage.setItem('profileName', name);
+    }
+    const idx = OB_STEPS.indexOf(btn.closest('.ob-step').dataset.step);
+    showObStep(OB_STEPS[idx + 1]);
+  } else if (btn.dataset.action === 'ob-finish') {
+    localStorage.setItem('onboarded', 'true');
+    localStorage.removeItem('onboardingStep');
+    startApp();
+  }
+});
+
+document.getElementById('obAvatarBtn').addEventListener('click', () => {
+  document.getElementById('obPhotoInput').click();
+});
+
+document.getElementById('obPhotoInput').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const dataUrl = await readImageAsDataUrl(file);
+  localStorage.setItem('profilePhoto', dataUrl);
+  const img = document.getElementById('obAvatarPreview');
+  img.src = dataUrl;
+  img.hidden = false;
+  document.getElementById('obAvatarIcon').hidden = true;
+});
+
+// ==================== Tema ====================
 
 function applyTheme(theme) {
   document.documentElement.dataset.theme = theme;
@@ -68,6 +208,24 @@ themeToggle.addEventListener('click', () => {
   localStorage.setItem('theme', next);
 });
 
+// ==================== Settings <-> App shell ====================
+
+function showSettings() {
+  appShellEl.hidden = true;
+  settingsView.hidden = false;
+}
+
+function showAppShell() {
+  settingsView.hidden = true;
+  appShellEl.hidden = false;
+}
+
+document.getElementById('profileBtn').addEventListener('click', showSettings);
+settingsToggle.addEventListener('click', showSettings);
+settingsBack.addEventListener('click', showAppShell);
+
+// ==================== Google (Calendar + Drive) ====================
+
 const googleToggle = document.getElementById('googleToggle');
 const googlePanel = document.getElementById('googlePanel');
 const googleStatusLabel = document.getElementById('googleStatusLabel');
@@ -75,6 +233,7 @@ const backupNowBtn = document.getElementById('backupNowBtn');
 const googleDisconnectBtn = document.getElementById('googleDisconnectBtn');
 const backupsList = document.getElementById('backupsList');
 const syncCalendarBtn = document.getElementById('syncCalendarBtn');
+const obGoogleToggle = document.getElementById('obGoogleToggle');
 
 syncCalendarBtn.addEventListener('click', async () => {
   syncCalendarBtn.disabled = true;
@@ -101,6 +260,7 @@ async function refreshGoogleState() {
       googleToggle.title = 'Google no está configurado en el servidor';
       googleStatusLabel.textContent = 'No disponible';
       googlePanel.hidden = true;
+      obGoogleToggle.disabled = true;
       return;
     }
 
@@ -108,6 +268,7 @@ async function refreshGoogleState() {
     googleToggle.title = data.connected ? 'Google conectado' : 'Conectar con Google';
     googleStatusLabel.textContent = data.connected ? 'Conectado' : 'No conectado';
     googlePanel.hidden = !data.connected;
+    obGoogleToggle.classList.toggle('active', data.connected);
 
     if (data.connected) loadBackups();
   } catch (err) {
@@ -139,15 +300,17 @@ async function loadBackups() {
   }
 }
 
-googleToggle.addEventListener('click', async () => {
+function toggleGoogle() {
   if (googleToggle.classList.contains('active')) {
     if (!confirm('¿Desconectar Google? Dejarás de sincronizar con Calendar y hacer backups.')) return;
-    await fetch('/api/google/disconnect', { method: 'POST' });
-    refreshGoogleState();
+    fetch('/api/google/disconnect', { method: 'POST' }).then(refreshGoogleState);
   } else {
     window.location.href = '/api/google/auth';
   }
-});
+}
+
+googleToggle.addEventListener('click', toggleGoogle);
+obGoogleToggle.addEventListener('click', toggleGoogle);
 
 backupNowBtn.addEventListener('click', async () => {
   backupNowBtn.disabled = true;
@@ -179,7 +342,7 @@ backupsList.addEventListener('click', async (e) => {
     const res = await fetch(`/api/google/restore/${fileId}`, { method: 'POST' });
     const data = await res.json();
     statusEl.textContent = `Restaurados ${data.restored ?? 0} recordatorios.`;
-    loadReminders();
+    refreshData();
   } finally {
     button.disabled = false;
     button.textContent = 'Restaurar';
@@ -188,19 +351,23 @@ backupsList.addEventListener('click', async (e) => {
 
 {
   const params = new URLSearchParams(window.location.search);
-  if (params.get('google') === 'connected') {
-    showSettings();
+  if (params.get('google') === 'connected' || params.get('google') === 'error') {
+    if (params.get('google') === 'error') alert('No se pudo conectar con Google, inténtalo de nuevo.');
     window.history.replaceState({}, '', window.location.pathname);
-  } else if (params.get('google') === 'error') {
-    showSettings();
-    alert('No se pudo conectar con Google, inténtalo de nuevo.');
-    window.history.replaceState({}, '', window.location.pathname);
+    if (localStorage.getItem('onboarded') !== 'true') {
+      showObStep('features');
+    } else {
+      showSettings();
+    }
   }
 }
 
 refreshGoogleState();
 
+// ==================== Push ====================
+
 const pushToggle = document.getElementById('pushToggle');
+const obPushToggle = document.getElementById('obPushToggle');
 
 function urlBase64ToUint8Array(base64String) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -213,12 +380,15 @@ async function refreshPushButtonState() {
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     pushToggle.disabled = true;
     pushToggle.title = 'Tu navegador no soporta notificaciones push';
+    obPushToggle.disabled = true;
     return;
   }
   const registration = await navigator.serviceWorker.ready;
   const subscription = await registration.pushManager.getSubscription();
-  pushToggle.classList.toggle('active', Boolean(subscription));
-  pushToggle.title = subscription ? 'Desactivar notificaciones push' : 'Activar notificaciones push';
+  const active = Boolean(subscription);
+  pushToggle.classList.toggle('active', active);
+  pushToggle.title = active ? 'Desactivar notificaciones push' : 'Activar notificaciones push';
+  obPushToggle.classList.toggle('active', active);
 }
 
 async function subscribeToPush() {
@@ -264,7 +434,7 @@ async function unsubscribeFromPush() {
   statusEl.textContent = 'Notificaciones push desactivadas.';
 }
 
-pushToggle.addEventListener('click', async () => {
+async function togglePush() {
   try {
     if (pushToggle.classList.contains('active')) {
       await unsubscribeFromPush();
@@ -275,7 +445,15 @@ pushToggle.addEventListener('click', async () => {
     statusEl.textContent = 'Error activando notificaciones: ' + err.message;
   }
   refreshPushButtonState();
-});
+}
+
+pushToggle.addEventListener('click', togglePush);
+obPushToggle.addEventListener('click', togglePush);
+
+// ==================== Voz: grabar y transcribir ====================
+
+const micBtn = document.getElementById('micBtn');
+micBtn.innerHTML = ICONS.mic;
 
 let mediaRecorder = null;
 let audioChunks = [];
@@ -351,13 +529,9 @@ micBtn.addEventListener('click', () => {
   }
 });
 
-textForm.addEventListener('submit', (e) => {
-  e.preventDefault();
-  const text = textInput.value.trim();
-  if (!text) return;
-  submitReminder(text);
-  textInput.value = '';
-});
+// ==================== Crear recordatorios ====================
+
+const RECURRENCE_LABEL = { daily: 'cada día', weekly: 'cada semana', monthly: 'cada mes' };
 
 async function submitReminder(text) {
   statusEl.textContent = 'Procesando...';
@@ -376,13 +550,62 @@ async function submitReminder(text) {
 
     const leadNote = data.leadMinutes > 0 ? ` — aviso ${data.leadMinutes} min antes` : '';
     const recurrenceNote = RECURRENCE_LABEL[data.reminder.recurrence] ? ` — ${RECURRENCE_LABEL[data.reminder.recurrence]}` : '';
-    statusEl.textContent = `Guardado: "${data.reminder.task}"${leadNote}${recurrenceNote}`;
+    const inboxNote = data.inbox ? ' — sin fecha, guardado en Bandeja de entrada' : '';
+    statusEl.textContent = `Guardado: "${data.reminder.task}"${leadNote}${recurrenceNote}${inboxNote}`;
     transcriptEl.textContent = '';
-    loadReminders();
+    refreshData();
   } catch (err) {
     statusEl.textContent = 'Error de conexión con el servidor.';
   }
 }
+
+document.getElementById('textForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = document.getElementById('textInput');
+  const text = input.value.trim();
+  if (!text) return;
+  submitReminder(text);
+  input.value = '';
+});
+
+// Refuerzo: el envio implicito con Enter no siempre dispara el evento "submit"
+// cuando el formulario tiene otros controles (el boton del microfono).
+document.getElementById('textInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    document.getElementById('textForm').requestSubmit();
+  }
+});
+
+// Modal de anadir rapido (Hoy / Proximo)
+const quickAddModal = document.getElementById('quickAddModal');
+
+function openQuickAdd() {
+  quickAddModal.hidden = false;
+  document.getElementById('quickAddInput').focus();
+}
+
+function closeQuickAdd() {
+  quickAddModal.hidden = true;
+  document.getElementById('quickAddInput').value = '';
+}
+
+document.querySelectorAll('[data-action="open-quick-add"]').forEach((btn) => {
+  btn.addEventListener('click', openQuickAdd);
+});
+quickAddModal.addEventListener('click', (e) => {
+  if (e.target === quickAddModal || e.target.dataset.action === 'close-quick-add') closeQuickAdd();
+});
+document.getElementById('quickAddForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = document.getElementById('quickAddInput');
+  const text = input.value.trim();
+  if (!text) return;
+  submitReminder(text);
+  closeQuickAdd();
+});
+
+// ==================== Render de una fila de recordatorio ====================
 
 const editingIds = new Set();
 
@@ -391,16 +614,21 @@ function formatDue(iso) {
 }
 
 function toDatetimeLocalValue(iso) {
-  const d = new Date(iso);
+  const d = iso ? new Date(iso) : new Date(Date.now() + 3600000);
   const pad = (n) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-const RECURRENCE_LABEL = { daily: 'cada día', weekly: 'cada semana', monthly: 'cada mes' };
-
 function renderReminderView(r) {
   const recurrence = RECURRENCE_LABEL[r.recurrence]
     ? `<span class="recurrence">${ICONS.repeat}${RECURRENCE_LABEL[r.recurrence]}</span>`
+    : '';
+  const meta = r.due_at
+    ? `<span class="task-meta">${ICONS.clock}${formatDue(r.due_at)}${recurrence}</span>`
+    : '<span class="task-meta">Sin fecha</span>';
+  const postponeButtons = r.due_at
+    ? `<button class="pill" data-action="postpone" data-minutes="60" title="Posponer 1 hora">+1h</button>
+       <button class="pill" data-action="postpone" data-minutes="1440" title="Posponer 1 día">+1d</button>`
     : '';
 
   return `
@@ -408,11 +636,10 @@ function renderReminderView(r) {
       <button class="check-circle" data-action="complete" aria-label="Completar">${ICONS.check}</button>
       <div class="reminder-info">
         <span class="task-text">${escapeHtml(r.task)}</span>
-        <span class="task-meta">${ICONS.clock}${formatDue(r.due_at)}${recurrence}</span>
+        ${meta}
       </div>
       <div class="reminder-quick-actions">
-        <button class="pill" data-action="postpone" data-minutes="60" title="Posponer 1 hora">+1h</button>
-        <button class="pill" data-action="postpone" data-minutes="1440" title="Posponer 1 día">+1d</button>
+        ${postponeButtons}
         <button data-action="edit" title="Editar" aria-label="Editar">${ICONS.edit}</button>
         <button data-action="delete" title="Cancelar recordatorio" aria-label="Cancelar">${ICONS.trash}</button>
       </div>
@@ -433,6 +660,70 @@ function renderReminderEdit(r) {
     </div>`;
 }
 
+function renderList(el, items, emptyHtml) {
+  if (items.length === 0) {
+    el.innerHTML = emptyHtml;
+    return;
+  }
+  el.innerHTML = items.map((r) => (editingIds.has(r.id) ? renderReminderEdit(r) : renderReminderView(r))).join('');
+}
+
+// Delegacion global para acciones sobre filas de recordatorio (vale para todas las pestañas)
+document.body.addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action]');
+  if (!button) return;
+  const validActions = ['complete', 'edit', 'cancel-edit', 'delete', 'postpone', 'save-edit'];
+  if (!validActions.includes(button.dataset.action)) return;
+
+  const item = button.closest('.reminder-row, .reminder-edit-row');
+  if (!item) return;
+  const id = Number(item.dataset.id);
+  const action = button.dataset.action;
+
+  if (action === 'complete') {
+    item.classList.add('completing');
+    setTimeout(async () => {
+      await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+      refreshData();
+    }, 320);
+  } else if (action === 'edit') {
+    editingIds.add(id);
+    renderCurrentPage();
+  } else if (action === 'cancel-edit') {
+    editingIds.delete(id);
+    renderCurrentPage();
+  } else if (action === 'delete') {
+    if (!confirm('¿Cancelar este recordatorio?')) return;
+    await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+    refreshData();
+  } else if (action === 'postpone') {
+    const minutes = Number(button.dataset.minutes);
+    await fetch(`/api/reminders/${id}/postpone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes }),
+    });
+    refreshData();
+  } else if (action === 'save-edit') {
+    const task = item.querySelector('.edit-task').value.trim();
+    const dueLocal = item.querySelector('.edit-due').value;
+    if (!task || !dueLocal) return;
+
+    await fetch(`/api/reminders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task, dueAt: new Date(dueLocal).toISOString() }),
+    });
+    editingIds.delete(id);
+    refreshData();
+  }
+});
+
+// ==================== Datos y navegacion por pestañas ====================
+
+let allReminders = [];
+let currentPage = 'inbox';
+
 const DAY_BUCKETS = ['Hoy', 'Mañana', 'Esta semana', 'Más adelante'];
 
 function dayBucket(iso) {
@@ -444,42 +735,176 @@ function dayBucket(iso) {
   return 'Más adelante';
 }
 
-function renderGroupedReminders(pending) {
-  const groups = { 'Hoy': [], 'Mañana': [], 'Esta semana': [], 'Más adelante': [] };
-  for (const r of pending) groups[dayBucket(r.due_at)].push(r);
+function pendingDated() {
+  return allReminders.filter((r) => r.status === 'pending' && r.due_at);
+}
 
-  return DAY_BUCKETS.filter((label) => groups[label].length > 0)
-    .map((label) => {
-      const items = groups[label]
-        .map((r) => (editingIds.has(r.id) ? renderReminderEdit(r) : renderReminderView(r)))
-        .join('');
-      return `<div class="day-group"><h3 class="day-label">${label}</h3>${items}</div>`;
+function updateHeaderCounts() {
+  const count = pendingDated().filter((r) => dayBucket(r.due_at) === 'Hoy').length;
+  todayCountEl.textContent = count > 0 ? `${count} tarea${count === 1 ? '' : 's'} para hoy` : 'Sin tareas para hoy';
+}
+
+function renderInbox() {
+  const items = allReminders.filter((r) => r.status === 'pending' && !r.due_at);
+  renderList(
+    document.getElementById('inboxList'),
+    items,
+    `<div class="empty-hero">
+      <div class="icon-circle">${ICONS.inbox}</div>
+      <p>Así funciona: di o escribe lo que quieras recordar. Si le pones fecha, te avisamos a tiempo. Si no, se queda aquí para que lo organices cuando quieras.</p>
+    </div>`
+  );
+}
+
+function renderTodayPage() {
+  const items = pendingDated()
+    .filter((r) => dayBucket(r.due_at) === 'Hoy')
+    .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+  renderList(document.getElementById('todayList'), items, '<div class="empty">Sin tareas para hoy 🎉</div>');
+}
+
+let calendarViewDate = new Date();
+let selectedDate = new Date();
+
+function renderCalendar() {
+  const year = calendarViewDate.getFullYear();
+  const month = calendarViewDate.getMonth();
+
+  document.getElementById('calMonthLabel').textContent = calendarViewDate.toLocaleDateString('es-ES', {
+    month: 'long',
+    year: 'numeric',
+  });
+
+  const firstOfMonth = new Date(year, month, 1);
+  const startWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const daysInPrevMonth = new Date(year, month, 0).getDate();
+
+  const todayStr = new Date().toDateString();
+  const selectedStr = selectedDate.toDateString();
+  const datesWithTasks = new Set(pendingDated().map((r) => new Date(r.due_at).toDateString()));
+
+  const cells = [];
+  for (let i = startWeekday - 1; i >= 0; i--) {
+    const d = daysInPrevMonth - i;
+    cells.push({ day: d, date: new Date(year, month - 1, d), otherMonth: true });
+  }
+  for (let d = 1; d <= daysInMonth; d++) {
+    cells.push({ day: d, date: new Date(year, month, d), otherMonth: false });
+  }
+  let nextDay = 1;
+  while (cells.length % 7 !== 0) {
+    cells.push({ day: nextDay, date: new Date(year, month + 1, nextDay), otherMonth: true });
+    nextDay++;
+  }
+
+  document.getElementById('calGrid').innerHTML = cells
+    .map((c) => {
+      const classes = ['cal-day'];
+      if (c.otherMonth) classes.push('other-month');
+      if (c.date.toDateString() === todayStr) classes.push('is-today');
+      if (c.date.toDateString() === selectedStr) classes.push('selected');
+      const hasTasks = datesWithTasks.has(c.date.toDateString());
+      return `<button class="${classes.join(' ')}" data-date="${c.date.toISOString()}">${c.day}${hasTasks ? '<span class="dot"></span>' : ''}</button>`;
     })
     .join('');
 }
 
-let latestPendingReminders = [];
+function renderUpcomingDayList() {
+  document.getElementById('selectedDayLabel').textContent = selectedDate.toLocaleDateString('es-ES', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
 
-async function loadReminders() {
+  const dayStr = selectedDate.toDateString();
+  const items = pendingDated()
+    .filter((r) => new Date(r.due_at).toDateString() === dayStr)
+    .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
+
+  renderList(document.getElementById('upcomingDayList'), items, '<div class="empty">Nada para este día</div>');
+}
+
+document.getElementById('calPrev').addEventListener('click', () => {
+  calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() - 1, 1);
+  renderCalendar();
+});
+document.getElementById('calNext').addEventListener('click', () => {
+  calendarViewDate = new Date(calendarViewDate.getFullYear(), calendarViewDate.getMonth() + 1, 1);
+  renderCalendar();
+});
+document.getElementById('calGrid').addEventListener('click', (e) => {
+  const btn = e.target.closest('.cal-day');
+  if (!btn) return;
+  selectedDate = new Date(btn.dataset.date);
+  renderCalendar();
+  renderUpcomingDayList();
+});
+
+let exploreFilter = 'all';
+const searchInput = document.getElementById('searchInput');
+const exploreFiltersEl = document.getElementById('exploreFilters');
+
+function renderExplore() {
+  const q = searchInput.value.trim().toLowerCase();
+  let items = allReminders;
+  if (exploreFilter !== 'all') items = items.filter((r) => r.status === exploreFilter);
+  if (q) {
+    items = items.filter(
+      (r) => r.task.toLowerCase().includes(q) || (r.original_text || '').toLowerCase().includes(q)
+    );
+  }
+  items = [...items].sort((a, b) => new Date(b.due_at || b.created_at) - new Date(a.due_at || a.created_at));
+
+  renderList(document.getElementById('exploreList'), items, '<div class="empty">Sin resultados</div>');
+}
+
+searchInput.addEventListener('input', renderExplore);
+exploreFiltersEl.addEventListener('click', (e) => {
+  const btn = e.target.closest('.filter-pill');
+  if (!btn) return;
+  exploreFilter = btn.dataset.filter;
+  [...exploreFiltersEl.children].forEach((b) => b.classList.toggle('active', b === btn));
+  renderExplore();
+});
+
+function renderCurrentPage() {
+  if (currentPage === 'inbox') renderInbox();
+  else if (currentPage === 'today') renderTodayPage();
+  else if (currentPage === 'upcoming') {
+    renderCalendar();
+    renderUpcomingDayList();
+  } else if (currentPage === 'explore') renderExplore();
+
+  updateHeaderCounts();
+}
+
+function switchPage(page) {
+  currentPage = page;
+  document.querySelectorAll('.app-page').forEach((el) => {
+    el.hidden = el.dataset.page !== page;
+  });
+  document.querySelectorAll('.nav-item').forEach((el) => {
+    el.classList.toggle('active', el.dataset.page === page);
+  });
+  renderCurrentPage();
+}
+
+document.querySelectorAll('.nav-item').forEach((btn) => {
+  btn.addEventListener('click', () => switchPage(btn.dataset.page));
+});
+
+async function refreshData() {
   try {
     const res = await fetch('/api/reminders');
-    const reminders = await res.json();
-    const pending = reminders.filter((r) => r.status === 'pending');
-    latestPendingReminders = pending;
-
-    const todayCount = pending.filter((r) => dayBucket(r.due_at) === 'Hoy').length;
-    todayCountEl.textContent = todayCount > 0 ? `${todayCount} tarea${todayCount === 1 ? '' : 's'} para hoy` : 'Sin tareas para hoy';
-
-    if (pending.length === 0) {
-      remindersList.innerHTML = '<div class="empty">No tienes recordatorios pendientes 🎉</div>';
-      return;
-    }
-
-    remindersList.innerHTML = renderGroupedReminders(pending);
+    allReminders = await res.json();
   } catch (err) {
-    remindersList.innerHTML = '<div class="empty">No se pudieron cargar los recordatorios</div>';
+    allReminders = [];
   }
+  renderCurrentPage();
 }
+
+// ==================== Leer tareas de hoy en voz alta ====================
 
 const readTodayBtn = document.getElementById('readTodayBtn');
 
@@ -495,7 +920,7 @@ function speak(text) {
 }
 
 readTodayBtn.addEventListener('click', () => {
-  const today = latestPendingReminders
+  const today = pendingDated()
     .filter((r) => dayBucket(r.due_at) === 'Hoy')
     .sort((a, b) => new Date(a.due_at) - new Date(b.due_at));
 
@@ -513,58 +938,7 @@ readTodayBtn.addEventListener('click', () => {
   speak(intro + parts.join('. '));
 });
 
-remindersList.addEventListener('click', async (e) => {
-  const button = e.target.closest('button[data-action]');
-  if (!button) return;
-
-  const item = button.closest('.reminder-row, .reminder-edit-row');
-  const id = Number(item.dataset.id);
-  const action = button.dataset.action;
-
-  if (action === 'complete') {
-    item.classList.add('completing');
-    setTimeout(async () => {
-      await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
-      loadReminders();
-    }, 320);
-  } else if (action === 'edit') {
-    editingIds.add(id);
-    loadReminders();
-  } else if (action === 'cancel-edit') {
-    editingIds.delete(id);
-    loadReminders();
-  } else if (action === 'delete') {
-    if (!confirm('¿Cancelar este recordatorio?')) return;
-    await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
-    loadReminders();
-  } else if (action === 'postpone') {
-    const minutes = Number(button.dataset.minutes);
-    await fetch(`/api/reminders/${id}/postpone`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ minutes }),
-    });
-    loadReminders();
-  } else if (action === 'save-edit') {
-    const task = item.querySelector('.edit-task').value.trim();
-    const dueLocal = item.querySelector('.edit-due').value;
-    if (!task || !dueLocal) return;
-
-    await fetch(`/api/reminders/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task, dueAt: new Date(dueLocal).toISOString() }),
-    });
-    editingIds.delete(id);
-    loadReminders();
-  }
-});
-
-function escapeHtml(str) {
-  const div = document.createElement('div');
-  div.textContent = str;
-  return div.innerHTML;
-}
+// ==================== Arranque ====================
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('/sw.js').then(() => {
@@ -572,6 +946,11 @@ if ('serviceWorker' in navigator) {
   }).catch(() => {});
 } else {
   pushToggle.disabled = true;
+  obPushToggle.disabled = true;
 }
 
-loadReminders();
+if (localStorage.getItem('onboarded') === 'true') {
+  applyProfileToUI();
+  switchPage('inbox');
+  refreshData();
+}

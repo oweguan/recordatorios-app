@@ -11,36 +11,184 @@
   <link rel="stylesheet" href="/style.css" />
 </head>
 <body>
-  <div id="mainView">
+  <!-- ---------- Onboarding ---------- -->
+  <div id="onboarding" hidden>
+    <section class="ob-step" data-step="welcome">
+      <div class="ob-hero">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><circle cx="12" cy="12" r="10" opacity="0.15"/></svg>
+      </div>
+      <h1>Organiza tu vida sin escribir nada</h1>
+      <p class="ob-text">Di en voz alta lo que necesitas recordar y la app entiende la fecha, la hora, y hasta si se repite. Te avisa por notificación y por Telegram, y lo sincroniza con tu Google Calendar.</p>
+      <button class="ob-primary" data-action="ob-next">Empecemos</button>
+    </section>
+
+    <section class="ob-step" data-step="personalize" hidden>
+      <h1>Personaliza tu espacio</h1>
+      <p class="ob-text">Ponle tu nombre y una foto, solo para ti.</p>
+
+      <button class="ob-avatar" id="obAvatarBtn" aria-label="Subir foto">
+        <img id="obAvatarPreview" alt="" hidden />
+        <svg id="obAvatarIcon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+      </button>
+      <input type="file" id="obPhotoInput" accept="image/*" hidden />
+
+      <input type="text" id="obNameInput" class="ob-input" placeholder="Tu nombre" autocomplete="off" />
+
+      <button class="ob-primary" data-action="ob-next">Siguiente</button>
+    </section>
+
+    <section class="ob-step" data-step="features" hidden>
+      <h1>Activa lo que quieras usar</h1>
+      <p class="ob-text">Puedes cambiarlo cuando quieras desde Ajustes.</p>
+
+      <div class="ob-feature-row">
+        <div>
+          <strong>Notificaciones push</strong>
+          <p>Avisos directos en este dispositivo</p>
+        </div>
+        <button id="obPushToggle" class="switch" aria-label="Activar notificaciones push"></button>
+      </div>
+
+      <div class="ob-feature-row">
+        <div>
+          <strong>Google Calendar y Drive</strong>
+          <p>Sincroniza tareas y hace copias de seguridad</p>
+        </div>
+        <button id="obGoogleToggle" class="switch" aria-label="Conectar Google"></button>
+      </div>
+
+      <button class="ob-primary" data-action="ob-finish">Ir a la app</button>
+    </section>
+  </div>
+
+  <!-- ---------- App principal ---------- -->
+  <div id="appShell" hidden>
     <header class="app-header">
+      <button id="profileBtn" class="profile-btn" aria-label="Perfil y ajustes">
+        <img id="profileAvatar" alt="" hidden />
+        <span id="profileInitial"></span>
+      </button>
       <div class="header-titles">
-        <h1>Recordatorios</h1>
+        <h1 id="greeting">Hola</h1>
         <p id="todayCount" class="subtitle"></p>
       </div>
       <button id="settingsToggle" class="icon-button" aria-label="Ajustes" title="Ajustes"></button>
     </header>
 
-    <form id="textForm" class="quick-add">
-      <input id="textInput" type="text" placeholder="Añadir una tarea... p.ej. mañana a las 9" autocomplete="off" />
-      <button type="button" id="micBtn" class="mic-inline" aria-label="Grabar por voz" title="Grabar por voz"></button>
-    </form>
-    <div id="status" class="status"></div>
-    <div id="transcript" class="transcript"></div>
+    <!-- Bandeja de entrada -->
+    <section class="app-page" data-page="inbox">
+      <form id="textForm" class="quick-add">
+        <input id="textInput" type="text" placeholder="Añadir una tarea... p.ej. mañana a las 9" autocomplete="off" />
+        <button type="button" id="micBtn" class="mic-inline" aria-label="Grabar por voz" title="Grabar por voz"></button>
+      </form>
+      <div id="status" class="status"></div>
+      <div id="transcript" class="transcript"></div>
 
-    <div class="reminders">
-      <div class="reminders-header">
-        <h2>Próximos</h2>
-        <button id="readTodayBtn" class="icon-button-sm" aria-label="Leer tareas de hoy" title="Leer tareas de hoy"></button>
+      <div class="reminders">
+        <div class="reminders-header">
+          <h2>Bandeja de entrada</h2>
+        </div>
+        <div id="inboxList"></div>
       </div>
-      <div id="remindersList"></div>
+    </section>
+
+    <!-- Hoy -->
+    <section class="app-page" data-page="today" hidden>
+      <div class="reminders">
+        <div class="reminders-header">
+          <h2>Hoy</h2>
+          <div class="header-actions-inline">
+            <button id="readTodayBtn" class="icon-button-sm" aria-label="Leer tareas de hoy" title="Leer tareas de hoy"></button>
+            <button class="icon-button-sm" data-action="open-quick-add" aria-label="Añadir tarea" title="Añadir tarea"></button>
+          </div>
+        </div>
+        <div id="todayList"></div>
+      </div>
+    </section>
+
+    <!-- Próximo -->
+    <section class="app-page" data-page="upcoming" hidden>
+      <div class="calendar-header">
+        <button id="calPrev" class="icon-button-sm" aria-label="Mes anterior"></button>
+        <h2 id="calMonthLabel"></h2>
+        <button id="calNext" class="icon-button-sm" aria-label="Mes siguiente"></button>
+      </div>
+      <div class="calendar-weekdays" id="calWeekdays"></div>
+      <div class="calendar-grid" id="calGrid"></div>
+
+      <div class="reminders">
+        <div class="reminders-header">
+          <h2 id="selectedDayLabel">Selecciona un día</h2>
+          <button class="icon-button-sm" data-action="open-quick-add" aria-label="Añadir tarea" title="Añadir tarea"></button>
+        </div>
+        <div id="upcomingDayList"></div>
+      </div>
+    </section>
+
+    <!-- Explorar -->
+    <section class="app-page" data-page="explore" hidden>
+      <div class="quick-add">
+        <input id="searchInput" type="text" placeholder="Buscar recordatorios..." autocomplete="off" />
+      </div>
+      <div class="explore-filters" id="exploreFilters">
+        <button class="filter-pill active" data-filter="all">Todos</button>
+        <button class="filter-pill" data-filter="pending">Pendientes</button>
+        <button class="filter-pill" data-filter="sent">Enviados</button>
+      </div>
+      <div id="exploreList" class="reminders"></div>
+    </section>
+
+    <nav class="bottom-nav">
+      <button class="nav-item active" data-page="inbox">
+        <span class="nav-icon"></span>
+        <span>Bandeja</span>
+      </button>
+      <button class="nav-item" data-page="today">
+        <span class="nav-icon"></span>
+        <span>Hoy</span>
+      </button>
+      <button class="nav-item" data-page="upcoming">
+        <span class="nav-icon"></span>
+        <span>Próximo</span>
+      </button>
+      <button class="nav-item" data-page="explore">
+        <span class="nav-icon"></span>
+        <span>Explorar</span>
+      </button>
+    </nav>
+  </div>
+
+  <!-- ---------- Modal de añadir rápido ---------- -->
+  <div id="quickAddModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <h3>Añadir tarea</h3>
+      <form id="quickAddForm">
+        <input id="quickAddInput" type="text" placeholder="p.ej. reunión el jueves a las 5" autocomplete="off" />
+        <div class="modal-actions">
+          <button type="button" data-action="close-quick-add">Cancelar</button>
+          <button type="submit" class="ob-primary">Añadir</button>
+        </div>
+      </form>
     </div>
   </div>
 
+  <!-- ---------- Ajustes ---------- -->
   <div id="settingsView" class="settings-view" hidden>
     <header class="app-header">
       <button id="settingsBack" class="icon-button" aria-label="Volver" title="Volver"></button>
       <h1>Ajustes</h1>
     </header>
+
+    <section class="settings-section">
+      <h2>Perfil</h2>
+      <div class="settings-row">
+        <span id="settingsProfileName">—</span>
+        <button id="settingsAvatarBtn" class="profile-btn profile-btn-sm" aria-label="Cambiar foto">
+          <img id="settingsAvatarPreview" alt="" hidden />
+          <span id="settingsAvatarInitial"></span>
+        </button>
+      </div>
+    </section>
 
     <section class="settings-section">
       <h2>Apariencia</h2>
@@ -85,6 +233,8 @@
       </div>
     </section>
   </div>
+
+  <input type="file" id="settingsPhotoInput" accept="image/*" hidden />
 
   <script src="/app.js"></script>
 </body>

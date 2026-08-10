@@ -41,6 +41,10 @@ export async function init() {
       refresh_token TEXT
     )
   `);
+
+  // Permite recordatorios sin fecha (bandeja de entrada).
+  await pool.query(`ALTER TABLE reminders ALTER COLUMN due_at DROP NOT NULL`);
+  await pool.query(`ALTER TABLE reminders ALTER COLUMN notify_at DROP NOT NULL`);
 }
 
 export async function saveGoogleAuth({ refreshToken }) {
@@ -82,7 +86,7 @@ export async function createReminder({ originalText, task, dueAt, notifyAt, recu
   const result = await pool.query(
     `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id)
      VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-    [originalText, task, dueAt, notifyAt ?? dueAt, recurrence ?? null, String(chatId)]
+    [originalText, task, dueAt ?? null, notifyAt ?? dueAt ?? null, recurrence ?? null, String(chatId)]
   );
   return result.rows[0];
 }
@@ -93,13 +97,13 @@ export async function getReminderById(id) {
 }
 
 export async function listReminders() {
-  const result = await pool.query('SELECT * FROM reminders ORDER BY due_at ASC');
+  const result = await pool.query('SELECT * FROM reminders ORDER BY due_at ASC NULLS FIRST');
   return result.rows;
 }
 
 export async function getDueReminders(nowIso) {
   const result = await pool.query(
-    `SELECT * FROM reminders WHERE status = 'pending' AND notify_at <= $1`,
+    `SELECT * FROM reminders WHERE status = 'pending' AND notify_at IS NOT NULL AND notify_at <= $1`,
     [nowIso]
   );
   return result.rows;
@@ -119,7 +123,7 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
 export async function updateReminder(id, { task, dueAt, notifyAt }) {
   const result = await pool.query(
     `UPDATE reminders SET task = $1, due_at = $2, notify_at = $3, status = 'pending' WHERE id = $4 RETURNING *`,
-    [task, dueAt, notifyAt, id]
+    [task, dueAt ?? null, notifyAt ?? null, id]
   );
   return result.rows[0];
 }

@@ -50,6 +50,29 @@ db.exec(`
   )
 `);
 
+// Permite recordatorios sin fecha (bandeja de entrada): due_at/notify_at pasan a ser NULLables.
+const dueAtInfo = db.prepare("PRAGMA table_info(reminders)").all().find((c) => c.name === 'due_at');
+if (dueAtInfo && dueAtInfo.notnull) {
+  db.exec(`
+    CREATE TABLE reminders_new (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      original_text TEXT NOT NULL,
+      task TEXT NOT NULL,
+      due_at TEXT,
+      notify_at TEXT,
+      recurrence TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      chat_id TEXT NOT NULL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      google_event_id TEXT
+    );
+    INSERT INTO reminders_new (id, original_text, task, due_at, notify_at, recurrence, status, chat_id, created_at, google_event_id)
+      SELECT id, original_text, task, due_at, notify_at, recurrence, status, chat_id, created_at, google_event_id FROM reminders;
+    DROP TABLE reminders;
+    ALTER TABLE reminders_new RENAME TO reminders;
+  `);
+}
+
 export async function init() {}
 
 export async function saveGoogleAuth({ refreshToken }) {
@@ -88,7 +111,7 @@ export async function createReminder({ originalText, task, dueAt, notifyAt, recu
     INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id)
     VALUES (?, ?, ?, ?, ?, ?)
   `);
-  const result = stmt.run(originalText, task, dueAt, notifyAt ?? dueAt, recurrence ?? null, String(chatId));
+  const result = stmt.run(originalText, task, dueAt ?? null, notifyAt ?? dueAt ?? null, recurrence ?? null, String(chatId));
   return getReminderById(Number(result.lastInsertRowid));
 }
 
@@ -97,13 +120,13 @@ export async function getReminderById(id) {
 }
 
 export async function listReminders() {
-  return db.prepare('SELECT * FROM reminders ORDER BY due_at ASC').all();
+  return db.prepare('SELECT * FROM reminders ORDER BY due_at IS NULL, due_at ASC').all();
 }
 
 export async function getDueReminders(nowIso) {
   return db.prepare(`
     SELECT * FROM reminders
-    WHERE status = 'pending' AND notify_at <= ?
+    WHERE status = 'pending' AND notify_at IS NOT NULL AND notify_at <= ?
   `).all(nowIso);
 }
 
@@ -118,7 +141,7 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
 
 export async function updateReminder(id, { task, dueAt, notifyAt }) {
   db.prepare(`UPDATE reminders SET task = ?, due_at = ?, notify_at = ?, status = 'pending' WHERE id = ?`)
-    .run(task, dueAt, notifyAt, id);
+    .run(task, dueAt ?? null, notifyAt ?? null, id);
   return getReminderById(id);
 }
 
