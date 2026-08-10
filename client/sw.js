@@ -1,4 +1,4 @@
-const CACHE_NAME = 'recordatorios-v1';
+const CACHE_NAME = 'recordatorios-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -25,10 +25,17 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
+// Network-first: siempre intenta traer la version mas reciente; si no hay red, usa la cache como respaldo offline.
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET') return;
   event.respondWith(
-    caches.match(event.request).then((cached) => cached || fetch(event.request))
+    fetch(event.request)
+      .then((response) => {
+        const clone = response.clone();
+        caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+        return response;
+      })
+      .catch(() => caches.match(event.request))
   );
 });
 

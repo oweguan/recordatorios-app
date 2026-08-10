@@ -61,3 +61,13 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
   db.prepare(`UPDATE reminders SET due_at = ?, notify_at = ?, status = 'pending' WHERE id = ?`)
     .run(nextDueAt, nextNotifyAt ?? nextDueAt, id);
 }
+
+export async function updateReminder(id, { task, dueAt, notifyAt }) {
+  db.prepare(`UPDATE reminders SET task = ?, due_at = ?, notify_at = ?, status = 'pending' WHERE id = ?`)
+    .run(task, dueAt, notifyAt, id);
+  return getReminderById(id);
+}
+
+export async function deleteReminder(id) {
+  db.prepare('DELETE FROM reminders WHERE id = ?').run(id);
+}

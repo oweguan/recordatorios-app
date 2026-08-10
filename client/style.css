@@ -119,8 +119,14 @@ h1 {
   padding: 14px 16px;
   margin-bottom: 10px;
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.reminder-main {
+  display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   gap: 12px;
 }
 
@@ -132,6 +138,49 @@ h1 {
   color: var(--text-dim);
   font-size: 0.85rem;
   white-space: nowrap;
+}
+
+.reminder-actions {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.reminder-actions button {
+  background: #26263a;
+  color: var(--text);
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+
+.reminder-actions button:hover {
+  background: #32324a;
+}
+
+.reminder-actions button[data-action="delete"] {
+  margin-left: auto;
+}
+
+.reminder-actions button[data-action="save-edit"] {
+  background: var(--accent);
+}
+
+.reminder-edit-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.reminder-edit-form input {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #2c2c3a;
+  background: #14141c;
+  color: var(--text);
+  font-size: 0.95rem;
 }
 
 .empty {

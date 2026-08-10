@@ -61,3 +61,15 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
     [nextDueAt, nextNotifyAt ?? nextDueAt, id]
   );
 }
+
+export async function updateReminder(id, { task, dueAt, notifyAt }) {
+  const result = await pool.query(
+    `UPDATE reminders SET task = $1, due_at = $2, notify_at = $3, status = 'pending' WHERE id = $4 RETURNING *`,
+    [task, dueAt, notifyAt, id]
+  );
+  return result.rows[0];
+}
+
+export async function deleteReminder(id) {
+  await pool.query('DELETE FROM reminders WHERE id = $1', [id]);
+}

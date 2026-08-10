@@ -91,6 +91,54 @@ async function submitReminder(text) {
   }
 }
 
+const editingIds = new Set();
+
+function formatDue(iso) {
+  return new Date(iso).toLocaleString('es-ES', {
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
+
+function toDatetimeLocalValue(iso) {
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+function renderReminderView(r) {
+  return `
+    <div class="reminder-item" data-id="${r.id}">
+      <div class="reminder-main">
+        <span class="task">${escapeHtml(r.task)}</span>
+        <span class="due">${formatDue(r.due_at)}</span>
+      </div>
+      <div class="reminder-actions">
+        <button data-action="postpone" data-minutes="15" title="Posponer 15 min">+15m</button>
+        <button data-action="postpone" data-minutes="60" title="Posponer 1 hora">+1h</button>
+        <button data-action="postpone" data-minutes="1440" title="Posponer 1 día">+1d</button>
+        <button data-action="edit" title="Editar">✏️</button>
+        <button data-action="delete" title="Cancelar recordatorio">🗑️</button>
+      </div>
+    </div>`;
+}
+
+function renderReminderEdit(r) {
+  return `
+    <div class="reminder-item editing" data-id="${r.id}">
+      <div class="reminder-edit-form">
+        <input type="text" class="edit-task" value="${escapeHtml(r.task)}" />
+        <input type="datetime-local" class="edit-due" value="${toDatetimeLocalValue(r.due_at)}" />
+      </div>
+      <div class="reminder-actions">
+        <button data-action="save-edit">Guardar</button>
+        <button data-action="cancel-edit">Cancelar</button>
+      </div>
+    </div>`;
+}
+
 async function loadReminders() {
   try {
     const res = await fetch('/api/reminders');
@@ -103,21 +151,53 @@ async function loadReminders() {
     }
 
     remindersList.innerHTML = pending
-      .map((r) => {
-        const date = new Date(r.due_at);
-        const formatted = date.toLocaleString('es-ES', {
-          day: '2-digit',
-          month: '2-digit',
-          hour: '2-digit',
-          minute: '2-digit',
-        });
-        return `<div class="reminder-item"><span class="task">${escapeHtml(r.task)}</span><span class="due">${formatted}</span></div>`;
-      })
+      .map((r) => (editingIds.has(r.id) ? renderReminderEdit(r) : renderReminderView(r)))
       .join('');
   } catch (err) {
     remindersList.innerHTML = '<div class="empty">No se pudieron cargar los recordatorios</div>';
   }
 }
+
+remindersList.addEventListener('click', async (e) => {
+  const button = e.target.closest('button[data-action]');
+  if (!button) return;
+
+  const item = button.closest('.reminder-item');
+  const id = Number(item.dataset.id);
+  const action = button.dataset.action;
+
+  if (action === 'edit') {
+    editingIds.add(id);
+    loadReminders();
+  } else if (action === 'cancel-edit') {
+    editingIds.delete(id);
+    loadReminders();
+  } else if (action === 'delete') {
+    if (!confirm('¿Cancelar este recordatorio?')) return;
+    await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+    loadReminders();
+  } else if (action === 'postpone') {
+    const minutes = Number(button.dataset.minutes);
+    await fetch(`/api/reminders/${id}/postpone`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ minutes }),
+    });
+    loadReminders();
+  } else if (action === 'save-edit') {
+    const task = item.querySelector('.edit-task').value.trim();
+    const dueLocal = item.querySelector('.edit-due').value;
+    if (!task || !dueLocal) return;
+
+    await fetch(`/api/reminders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task, dueAt: new Date(dueLocal).toISOString() }),
+    });
+    editingIds.delete(id);
+    loadReminders();
+  }
+});
 
 function escapeHtml(str) {
   const div = document.createElement('div');
