@@ -21,6 +21,7 @@ const ICONS = {
   flag: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 21V4c0-.55.45-1 1-1 2 1.5 4.5 1.5 7 0 2.5 1.5 5 1.5 6.5 0 .3-.3.8-.1.8.3v10c0 .3-.5.5-.8.3-1.5-1.5-4-1.5-6.5 0-2.5 1.5-5 1.5-7 0V21c0 .55-.45 1-1 1z"/></svg>',
   checklist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 5 10 9 6"/><line x1="12" y1="8" x2="21" y2="8"/><polyline points="3 17 5 19 9 15"/><line x1="12" y1="17" x2="21" y2="17"/></svg>',
   folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>',
+  grip: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>',
 };
 
 const PRIORITY_COLORS = { 1: '#e63946', 2: '#f4a52a', 3: '#4a90e2', 4: 'transparent' };
@@ -56,8 +57,7 @@ settingsToggle.innerHTML = ICONS.settings;
 settingsBack.innerHTML = ICONS.arrowLeft;
 document.getElementById('readTodayBtn').innerHTML = ICONS.volume;
 document.getElementById('pushToggle').innerHTML = ICONS.bell;
-document.getElementById('googleToggle').innerHTML = ICONS.cloud;
-document.querySelectorAll('[data-action="open-quick-add"], [data-action="add-project"]').forEach((btn) => {
+document.querySelectorAll('[data-action="open-quick-add"], [data-action="add-project"], #fabAdd').forEach((btn) => {
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 });
 document.querySelector('[data-action="back-to-projects"]').innerHTML = ICONS.arrowLeft;
@@ -184,7 +184,7 @@ function renderProjectDetail(project) {
   const items = allReminders
     .filter((r) => r.project_id === project.id)
     .sort((a, b) => {
-      if (!a.due_at && !b.due_at) return 0;
+      if (!a.due_at && !b.due_at) return (a.sort_order ?? 0) - (b.sort_order ?? 0);
       if (!a.due_at) return -1;
       if (!b.due_at) return 1;
       return new Date(a.due_at) - new Date(b.due_at);
@@ -436,16 +436,24 @@ document.getElementById('profileBtn').addEventListener('click', showSettings);
 settingsToggle.addEventListener('click', showSettings);
 settingsBack.addEventListener('click', showAppShell);
 
-// ==================== Google (Calendar + Drive) ====================
+// ==================== Google Calendar y Google Drive (activables por separado) ====================
+// Comparten una unica conexion OAuth, pero cada funcion se puede activar/desactivar por
+// separado sin desconectar la cuenta entera (ver /api/google/toggle en el servidor).
 
-const googleToggle = document.getElementById('googleToggle');
-const googlePanel = document.getElementById('googlePanel');
+const calendarToggle = document.getElementById('calendarToggle');
+const calendarPanel = document.getElementById('calendarPanel');
+const calendarStatusLabel = document.getElementById('calendarStatusLabel');
+const driveToggle = document.getElementById('driveToggle');
+const drivePanel = document.getElementById('drivePanel');
+const driveStatusLabel = document.getElementById('driveStatusLabel');
 const googleStatusLabel = document.getElementById('googleStatusLabel');
 const backupNowBtn = document.getElementById('backupNowBtn');
 const googleDisconnectBtn = document.getElementById('googleDisconnectBtn');
 const backupsList = document.getElementById('backupsList');
 const syncCalendarBtn = document.getElementById('syncCalendarBtn');
 const obGoogleToggle = document.getElementById('obGoogleToggle');
+
+let googleState = { configured: false, connected: false, calendarEnabled: true, driveEnabled: true };
 
 syncCalendarBtn.addEventListener('click', async () => {
   syncCalendarBtn.disabled = true;
@@ -465,24 +473,37 @@ syncCalendarBtn.addEventListener('click', async () => {
 async function refreshGoogleState() {
   try {
     const res = await fetch('/api/google/status');
-    const data = await res.json();
+    googleState = await res.json();
 
-    if (!data.configured) {
-      googleToggle.disabled = true;
-      googleToggle.title = 'Google no está configurado en el servidor';
+    if (!googleState.configured) {
+      calendarToggle.disabled = true;
+      driveToggle.disabled = true;
+      calendarStatusLabel.textContent = 'No disponible';
+      driveStatusLabel.textContent = 'No disponible';
       googleStatusLabel.textContent = 'No disponible';
-      googlePanel.hidden = true;
+      calendarPanel.hidden = true;
+      drivePanel.hidden = true;
+      googleDisconnectBtn.hidden = true;
       obGoogleToggle.disabled = true;
       return;
     }
 
-    googleToggle.classList.toggle('active', data.connected);
-    googleToggle.title = data.connected ? 'Google conectado' : 'Conectar con Google';
-    googleStatusLabel.textContent = data.connected ? 'Conectado' : 'No conectado';
-    googlePanel.hidden = !data.connected;
-    obGoogleToggle.classList.toggle('active', data.connected);
+    const calendarActive = googleState.connected && googleState.calendarEnabled;
+    const driveActive = googleState.connected && googleState.driveEnabled;
 
-    if (data.connected) loadBackups();
+    calendarToggle.classList.toggle('active', calendarActive);
+    calendarStatusLabel.textContent = calendarActive ? 'Activado' : googleState.connected ? 'Desactivado' : 'No conectado';
+    calendarPanel.hidden = !calendarActive;
+
+    driveToggle.classList.toggle('active', driveActive);
+    driveStatusLabel.textContent = driveActive ? 'Activado' : googleState.connected ? 'Desactivado' : 'No conectado';
+    drivePanel.hidden = !driveActive;
+
+    googleStatusLabel.textContent = googleState.connected ? 'Conectado' : 'No conectado';
+    googleDisconnectBtn.hidden = !googleState.connected;
+    obGoogleToggle.classList.toggle('active', googleState.connected);
+
+    if (driveActive) loadBackups();
   } catch (err) {
     // silencioso, no bloquea el resto de la app
   }
@@ -512,17 +533,29 @@ async function loadBackups() {
   }
 }
 
-function toggleGoogle() {
-  if (googleToggle.classList.contains('active')) {
-    if (!confirm('¿Desconectar Google? Dejarás de sincronizar con Calendar y hacer backups.')) return;
-    fetch('/api/google/disconnect', { method: 'POST' }).then(refreshGoogleState);
-  } else {
+async function toggleGoogleFeature(feature, currentlyActive) {
+  if (!googleState.connected) {
+    // Primera conexion: una sola autorizacion cubre Calendar y Drive a la vez.
     window.location.href = '/api/google/auth';
+    return;
   }
+  await fetch('/api/google/toggle', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ feature, enabled: !currentlyActive }),
+  });
+  refreshGoogleState();
 }
 
-googleToggle.addEventListener('click', toggleGoogle);
-obGoogleToggle.addEventListener('click', toggleGoogle);
+calendarToggle.addEventListener('click', () => {
+  toggleGoogleFeature('calendar', googleState.connected && googleState.calendarEnabled);
+});
+driveToggle.addEventListener('click', () => {
+  toggleGoogleFeature('drive', googleState.connected && googleState.driveEnabled);
+});
+obGoogleToggle.addEventListener('click', () => {
+  if (!googleState.connected) window.location.href = '/api/google/auth';
+});
 
 backupNowBtn.addEventListener('click', async () => {
   backupNowBtn.disabled = true;
@@ -537,7 +570,7 @@ backupNowBtn.addEventListener('click', async () => {
 });
 
 googleDisconnectBtn.addEventListener('click', async () => {
-  if (!confirm('¿Desconectar Google?')) return;
+  if (!confirm('¿Desconectar Google? Se apagarán Calendar y Drive a la vez.')) return;
   await fetch('/api/google/disconnect', { method: 'POST' });
   refreshGoogleState();
 });
@@ -808,6 +841,18 @@ function closeQuickAdd() {
 document.querySelectorAll('[data-action="open-quick-add"]').forEach((btn) => {
   btn.addEventListener('click', openQuickAdd);
 });
+
+// FAB global: si estamos dentro de un proyecto, enfoca su input dedicado (ya sabe a que
+// proyecto asignar la tarea); en cualquier otra pantalla, abre el modal generico.
+document.getElementById('fabAdd').addEventListener('click', () => {
+  if (currentPage === 'projects' && currentProjectId !== null) {
+    const input = document.getElementById('projectQuickAddInput');
+    input.focus();
+    input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  } else {
+    openQuickAdd();
+  }
+});
 quickAddModal.addEventListener('click', (e) => {
   if (e.target === quickAddModal || e.target.dataset.action === 'close-quick-add') closeQuickAdd();
 });
@@ -998,9 +1043,14 @@ function renderReminderView(r) {
     : '';
   const checkAction = isDone ? 'uncomplete' : 'complete';
   const checkLabel = isDone ? 'Marcar como pendiente' : 'Completar';
+  // La manija siempre se genera; que sea visible o no depende del contenedor via CSS
+  // (reordenar solo tiene sentido para tareas sin fecha en Bandeja/Proyecto, y arrastrar al
+  // calendario solo aplica a tareas con fecha en la lista del dia de Proximo).
+  const dragHandle = `<button type="button" class="drag-handle" aria-label="Arrastrar" title="Arrastrar">${ICONS.grip}</button>`;
 
   return `
-    <div class="reminder-row" data-id="${r.id}">
+    <div class="reminder-row" data-id="${r.id}"${r.due_at ? ' data-has-due="1"' : ''}>
+      ${dragHandle}
       <button class="check-circle${isDone ? ' checked' : ''}" data-action="${checkAction}" aria-label="${checkLabel}" title="${checkLabel}">${ICONS.check}</button>
       <div class="reminder-info">
         <span class="task-text${isDone ? ' done' : ''}">${priorityFlag(r.priority)}${escapeHtml(r.task)}</span>
@@ -1102,10 +1152,118 @@ async function refreshSubtasksInPlace(id, item) {
   updateHeaderCounts();
 }
 
+// ==================== Arrastrar y soltar ====================
+// Un unico controlador basado en pointer events (funciona igual con raton y con tactil) cubre
+// dos gestos: reordenar manualmente dentro de una lista (Bandeja/Proyecto), y arrastrar una
+// tarea del dia seleccionado en Proximo sobre el calendario para reprogramarla.
+
+let dragInfo = null;
+
+function findDragContext(row) {
+  if (row.closest('#inboxList')) return { type: 'reorder', container: document.getElementById('inboxList') };
+  if (row.closest('#projectTaskList')) return { type: 'reorder', container: document.getElementById('projectTaskList') };
+  if (row.closest('#upcomingDayList')) return { type: 'calendar', container: document.getElementById('upcomingDayList') };
+  return null;
+}
+
+function onDragMove(e) {
+  if (!dragInfo) return;
+  const { row, type } = dragInfo;
+
+  if (type === 'reorder') {
+    const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.reminder-row');
+    if (target && target !== row && target.parentElement === row.parentElement) {
+      const rect = target.getBoundingClientRect();
+      const before = e.clientY < rect.top + rect.height / 2;
+      target.parentElement.insertBefore(row, before ? target : target.nextSibling);
+    }
+  } else if (type === 'calendar') {
+    document.querySelectorAll('.cal-day.drop-target').forEach((el) => el.classList.remove('drop-target'));
+    const dayCell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day');
+    if (dayCell) dayCell.classList.add('drop-target');
+  }
+}
+
+async function onDragEnd(e) {
+  if (!dragInfo) return;
+  const { row, type, container, id, pointerId } = dragInfo;
+  try {
+    row.releasePointerCapture(pointerId);
+  } catch {
+    // ya liberado
+  }
+  row.removeEventListener('pointermove', onDragMove);
+  row.removeEventListener('pointerup', onDragEnd);
+  row.removeEventListener('pointercancel', onDragEnd);
+  row.classList.remove('dragging');
+  dragInfo = null;
+
+  if (type === 'reorder') {
+    const ids = [...container.querySelectorAll('.reminder-row')].map((el) => Number(el.dataset.id));
+    await fetch('/api/reminders/reorder', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ids }),
+    });
+    refreshData();
+  } else if (type === 'calendar') {
+    document.querySelectorAll('.cal-day.drop-target').forEach((el) => el.classList.remove('drop-target'));
+    const dayCell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day');
+    if (!dayCell) return;
+    const reminder = allReminders.find((r) => r.id === id);
+    if (!reminder || !reminder.due_at) return;
+    const newDate = new Date(dayCell.dataset.date);
+    const oldDate = new Date(reminder.due_at);
+    newDate.setHours(oldDate.getHours(), oldDate.getMinutes(), oldDate.getSeconds(), 0);
+    if (newDate.toDateString() === oldDate.toDateString()) return; // soltada en el mismo dia, nada que hacer
+    await fetch(`/api/reminders/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dueAt: newDate.toISOString() }),
+    });
+    refreshData();
+  }
+}
+
+document.body.addEventListener('pointerdown', (e) => {
+  const handle = e.target.closest('.drag-handle');
+  if (!handle) return;
+  const row = handle.closest('.reminder-row');
+  if (!row) return;
+  const ctx = findDragContext(row);
+  if (!ctx) return;
+
+  e.preventDefault();
+  dragInfo = {
+    id: Number(row.dataset.id),
+    row,
+    type: ctx.type,
+    container: ctx.container,
+    pointerId: e.pointerId,
+  };
+  row.classList.add('dragging');
+  row.setPointerCapture(e.pointerId);
+  row.addEventListener('pointermove', onDragMove);
+  row.addEventListener('pointerup', onDragEnd);
+  row.addEventListener('pointercancel', onDragEnd);
+});
+
 // Delegacion global para acciones sobre filas de recordatorio (vale para todas las pestañas)
 document.body.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
-  if (!button) return;
+  if (!button) {
+    // Clic en el cuerpo de la tarea (fuera de cualquier boton) abre edicion, como en Todoist.
+    const infoArea = e.target.closest('.reminder-info');
+    const row = infoArea?.closest('.reminder-row');
+    if (row) {
+      const rowId = Number(row.dataset.id);
+      if (!editingIds.has(rowId)) {
+        editingIds.add(rowId);
+        renderCurrentPage();
+      }
+    }
+    return;
+  }
   const validActions = [
     'complete',
     'uncomplete',
@@ -1251,7 +1409,9 @@ function updateHeaderCounts() {
 }
 
 function renderInbox() {
-  const items = allReminders.filter((r) => r.status !== 'done' && !r.due_at);
+  const items = allReminders
+    .filter((r) => r.status !== 'done' && !r.due_at)
+    .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
   renderList(
     document.getElementById('inboxList'),
     items,

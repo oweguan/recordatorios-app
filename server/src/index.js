@@ -10,7 +10,10 @@ import {
   listReminders,
   getReminderById,
   updateReminder,
+  reorderReminders,
   deleteReminder,
+  getGoogleAuth,
+  setGoogleFeatureEnabled,
   savePushSubscription,
   deletePushSubscription,
   listProjects,
@@ -140,6 +143,16 @@ app.post('/api/reminders', async (req, res) => {
 
 app.get('/api/reminders', async (req, res) => {
   res.json(await listReminders());
+});
+
+// Reordena manualmente (arrastrar y soltar): ids en el orden final deseado.
+app.post('/api/reminders/reorder', async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.some((id) => !Number.isInteger(id))) {
+    return res.status(400).json({ error: 'ids debe ser un array de numeros enteros' });
+  }
+  await reorderReminders(ids);
+  res.status(204).end();
 });
 
 app.patch('/api/reminders/:id', async (req, res) => {
@@ -338,7 +351,26 @@ app.delete('/api/subtasks/:id', async (req, res) => {
 });
 
 app.get('/api/google/status', async (req, res) => {
-  res.json({ configured: isGoogleConfigured(), connected: isGoogleConfigured() && (await isGoogleConnected()) });
+  const configured = isGoogleConfigured();
+  const connected = configured && (await isGoogleConnected());
+  let calendarEnabled = true;
+  let driveEnabled = true;
+  if (connected) {
+    const auth = await getGoogleAuth();
+    calendarEnabled = auth?.calendar_enabled !== false;
+    driveEnabled = auth?.drive_enabled !== false;
+  }
+  res.json({ configured, connected, calendarEnabled, driveEnabled });
+});
+
+// Activa/desactiva Calendar o Drive por separado sin desconectar la cuenta de Google entera.
+app.post('/api/google/toggle', async (req, res) => {
+  const { feature, enabled } = req.body;
+  if (!['calendar', 'drive'].includes(feature) || typeof enabled !== 'boolean') {
+    return res.status(400).json({ error: 'feature debe ser "calendar" o "drive", enabled debe ser booleano' });
+  }
+  const updated = await setGoogleFeatureEnabled(feature, enabled);
+  res.json({ calendarEnabled: updated?.calendar_enabled !== false, driveEnabled: updated?.drive_enabled !== false });
 });
 
 app.get('/api/google/auth', (req, res) => {

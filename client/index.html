@@ -221,6 +221,8 @@
         <span>Explorar</span>
       </button>
     </nav>
+
+    <button id="fabAdd" class="fab-add" aria-label="Añadir tarea" title="Añadir tarea"></button>
   </div>
 
   <!-- ---------- Modal de añadir rápido ---------- -->
@@ -299,29 +301,41 @@
     </section>
 
     <section class="settings-section">
-      <h2>Google</h2>
-      <p class="settings-hint">
-        Conecta tu cuenta para sincronizar automáticamente tus recordatorios con
-        <strong>Google Calendar</strong> y hacer copias de seguridad en <strong>Google Drive</strong>.
-      </p>
+      <h2>Google Calendar</h2>
+      <p class="settings-hint">Sincroniza automáticamente tus recordatorios con un calendario dedicado ("Tareas") en tu cuenta de Google.</p>
       <div class="settings-row">
-        <span id="googleStatusLabel">No conectado</span>
-        <button id="googleToggle" class="icon-button" aria-label="Conectar con Google" title="Conectar con Google"></button>
+        <span id="calendarStatusLabel">No conectado</span>
+        <button id="calendarToggle" class="switch" aria-label="Activar Google Calendar"></button>
       </div>
-
-      <div id="googlePanel" class="google-panel" hidden>
-        <h3>Google Calendar</h3>
-        <p class="settings-hint">Cada recordatorio nuevo se añade solo. Si tenías recordatorios de antes de conectar, sincronízalos aquí:</p>
+      <div id="calendarPanel" class="google-panel" hidden>
+        <p class="settings-hint">Si tenías recordatorios de antes de conectar, sincronízalos aquí:</p>
         <div class="google-actions">
           <button id="syncCalendarBtn">Sincronizar recordatorios existentes</button>
         </div>
+      </div>
+    </section>
 
-        <h3>Copias de seguridad en Drive</h3>
+    <section class="settings-section">
+      <h2>Google Drive</h2>
+      <p class="settings-hint">Copias de seguridad de todos tus recordatorios en tu Google Drive.</p>
+      <div class="settings-row">
+        <span id="driveStatusLabel">No conectado</span>
+        <button id="driveToggle" class="switch" aria-label="Activar Google Drive"></button>
+      </div>
+      <div id="drivePanel" class="google-panel" hidden>
         <div class="google-actions">
           <button id="backupNowBtn">Backup ahora</button>
-          <button id="googleDisconnectBtn">Desconectar Google</button>
         </div>
         <div id="backupsList"></div>
+      </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Cuenta de Google</h2>
+      <p class="settings-hint">Calendar y Drive usan la misma conexión de Google. Desconectar aquí apaga las dos funciones a la vez.</p>
+      <div class="settings-row">
+        <span id="googleStatusLabel">No conectado</span>
+        <button id="googleDisconnectBtn" class="settings-link-btn" hidden>Desconectar Google</button>
       </div>
     </section>
 

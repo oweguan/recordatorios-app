@@ -63,6 +63,18 @@ db.exec(`
   )
 `);
 
+try {
+  db.exec('ALTER TABLE google_auth ADD COLUMN calendar_enabled INTEGER NOT NULL DEFAULT 1');
+} catch {
+  // ya existe
+}
+
+try {
+  db.exec('ALTER TABLE google_auth ADD COLUMN drive_enabled INTEGER NOT NULL DEFAULT 1');
+} catch {
+  // ya existe
+}
+
 db.exec(`
   CREATE TABLE IF NOT EXISTS projects (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -95,6 +107,12 @@ try {
   // ya existe
 }
 
+try {
+  db.exec('ALTER TABLE reminders ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0');
+} catch {
+  // ya existe
+}
+
 // Permite recordatorios sin fecha (bandeja de entrada): due_at/notify_at pasan a ser NULLables.
 const dueAtInfo = db.prepare("PRAGMA table_info(reminders)").all().find((c) => c.name === 'due_at');
 if (dueAtInfo && dueAtInfo.notnull) {
@@ -113,10 +131,11 @@ if (dueAtInfo && dueAtInfo.notnull) {
       priority INTEGER NOT NULL DEFAULT 4,
       labels TEXT,
       project_id INTEGER,
-      description TEXT
+      description TEXT,
+      sort_order INTEGER NOT NULL DEFAULT 0
     );
-    INSERT INTO reminders_new (id, original_text, task, due_at, notify_at, recurrence, status, chat_id, created_at, google_event_id, priority, labels, project_id, description)
-      SELECT id, original_text, task, due_at, notify_at, recurrence, status, chat_id, created_at, google_event_id, priority, labels, project_id, description FROM reminders;
+    INSERT INTO reminders_new (id, original_text, task, due_at, notify_at, recurrence, status, chat_id, created_at, google_event_id, priority, labels, project_id, description, sort_order)
+      SELECT id, original_text, task, due_at, notify_at, recurrence, status, chat_id, created_at, google_event_id, priority, labels, project_id, description, sort_order FROM reminders;
     DROP TABLE reminders;
     ALTER TABLE reminders_new RENAME TO reminders;
   `);
@@ -221,7 +240,15 @@ export async function saveGoogleAuth({ refreshToken }) {
 }
 
 export async function getGoogleAuth() {
-  return db.prepare('SELECT * FROM google_auth WHERE id = 1').get();
+  const row = db.prepare('SELECT * FROM google_auth WHERE id = 1').get();
+  if (!row) return row;
+  return { ...row, calendar_enabled: Boolean(row.calendar_enabled), drive_enabled: Boolean(row.drive_enabled) };
+}
+
+export async function setGoogleFeatureEnabled(feature, enabled) {
+  const column = feature === 'drive' ? 'drive_enabled' : 'calendar_enabled';
+  db.prepare(`UPDATE google_auth SET ${column} = ? WHERE id = 1`).run(enabled ? 1 : 0);
+  return getGoogleAuth();
 }
 
 export async function updateReminderGoogleEventId(id, googleEventId) {
@@ -256,9 +283,10 @@ export async function createReminder({
   projectId,
   description,
 }) {
+  const nextSortOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM reminders').get()).n;
   const stmt = db.prepare(`
-    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description, sort_order)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     originalText,
@@ -270,9 +298,15 @@ export async function createReminder({
     priority ?? 4,
     JSON.stringify(labels ?? []),
     projectId ?? null,
-    description ?? null
+    description ?? null,
+    nextSortOrder
   );
   return getReminderById(Number(result.lastInsertRowid));
+}
+
+export async function reorderReminders(ids) {
+  const stmt = db.prepare('UPDATE reminders SET sort_order = ? WHERE id = ?');
+  ids.forEach((id, index) => stmt.run(index, id));
 }
 
 export async function getReminderById(id) {

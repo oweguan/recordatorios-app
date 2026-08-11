@@ -44,6 +44,8 @@ export async function init() {
       refresh_token TEXT
     )
   `);
+  await pool.query(`ALTER TABLE google_auth ADD COLUMN IF NOT EXISTS calendar_enabled BOOLEAN NOT NULL DEFAULT true`);
+  await pool.query(`ALTER TABLE google_auth ADD COLUMN IF NOT EXISTS drive_enabled BOOLEAN NOT NULL DEFAULT true`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS projects (
@@ -67,6 +69,7 @@ export async function init() {
 
   await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS project_id INTEGER`);
   await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS description TEXT`);
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS sort_order INTEGER NOT NULL DEFAULT 0`);
 
   // Permite recordatorios sin fecha (bandeja de entrada).
   await pool.query(`ALTER TABLE reminders ALTER COLUMN due_at DROP NOT NULL`);
@@ -186,6 +189,12 @@ export async function getGoogleAuth() {
   return result.rows[0];
 }
 
+export async function setGoogleFeatureEnabled(feature, enabled) {
+  const column = feature === 'drive' ? 'drive_enabled' : 'calendar_enabled';
+  await pool.query(`UPDATE google_auth SET ${column} = $1 WHERE id = 1`, [enabled]);
+  return getGoogleAuth();
+}
+
 export async function updateReminderGoogleEventId(id, googleEventId) {
   await pool.query('UPDATE reminders SET google_event_id = $1 WHERE id = $2', [googleEventId, id]);
 }
@@ -220,9 +229,10 @@ export async function createReminder({
   projectId,
   description,
 }) {
+  const sortOrderRes = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM reminders');
   const result = await pool.query(
-    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
+    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description, sort_order)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
     [
       originalText,
       task,
@@ -234,9 +244,16 @@ export async function createReminder({
       JSON.stringify(labels ?? []),
       projectId ?? null,
       description ?? null,
+      sortOrderRes.rows[0].n,
     ]
   );
   return getReminderById(result.rows[0].id);
+}
+
+export async function reorderReminders(ids) {
+  for (let index = 0; index < ids.length; index++) {
+    await pool.query('UPDATE reminders SET sort_order = $1 WHERE id = $2', [index, ids[index]]);
+  }
 }
 
 export async function getReminderById(id) {

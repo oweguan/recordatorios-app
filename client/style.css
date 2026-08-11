@@ -361,6 +361,37 @@ body {
   transform: translateX(10px);
 }
 
+.drag-handle {
+  display: none;
+  flex-shrink: 0;
+  width: 18px;
+  height: 21px;
+  margin-top: 2px;
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: grab;
+  padding: 0;
+  align-items: center;
+  justify-content: center;
+  touch-action: none;
+}
+
+.drag-handle svg {
+  width: 14px;
+  height: 14px;
+}
+
+#inboxList .drag-handle,
+#projectTaskList .reminder-row:not([data-has-due]) .drag-handle,
+#upcomingDayList .drag-handle {
+  display: flex;
+}
+
+.reminder-row.dragging {
+  opacity: 0.5;
+}
+
 .check-circle {
   flex-shrink: 0;
   width: 21px;
@@ -397,6 +428,7 @@ body {
 .reminder-info {
   flex: 1;
   min-width: 0;
+  cursor: pointer;
 }
 
 .task-text {
@@ -1255,6 +1287,38 @@ body {
   padding-bottom: env(safe-area-inset-bottom, 0);
 }
 
+.fab-add {
+  position: fixed;
+  right: 20px;
+  bottom: calc(76px + env(safe-area-inset-bottom, 0px));
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: white;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
+  cursor: pointer;
+  z-index: 55;
+  transition: background 0.15s, transform 0.1s;
+}
+
+.fab-add:hover {
+  background: var(--accent-hover);
+}
+
+.fab-add:active {
+  transform: scale(0.94);
+}
+
+.fab-add svg {
+  width: 24px;
+  height: 24px;
+}
+
 .nav-item {
   flex: 1;
   display: flex;
@@ -1362,6 +1426,12 @@ body {
 .cal-day.selected {
   background: var(--accent);
   color: white;
+}
+
+.cal-day.drop-target {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  background: var(--btn);
 }
 
 .cal-day .dot {
