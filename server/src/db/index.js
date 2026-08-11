@@ -10,6 +10,7 @@ export const {
   getDueReminders,
   markSent,
   rescheduleRecurring,
+  setReminderStatus,
   updateReminder,
   deleteReminder,
   savePushSubscription,

@@ -387,7 +387,8 @@ body {
   border-color: var(--accent);
 }
 
-.reminder-row.completing .check-circle {
+.reminder-row.completing .check-circle,
+.check-circle.checked {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
@@ -405,7 +406,8 @@ body {
   word-break: break-word;
 }
 
-.reminder-row.completing .task-text {
+.reminder-row.completing .task-text,
+.task-text.done {
   text-decoration: line-through;
   color: var(--text-dim);
 }
@@ -690,6 +692,30 @@ body {
 .reminder-edit-form textarea {
   resize: vertical;
   min-height: 50px;
+}
+
+.edit-due-row {
+  display: flex;
+  gap: 6px;
+}
+
+.edit-due-row .edit-due {
+  flex: 1;
+}
+
+.clear-due-btn {
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-alt);
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+}
+
+.clear-due-btn:hover {
+  background: var(--btn);
+  color: var(--text);
 }
 
 .edit-subtasks {

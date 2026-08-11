@@ -268,6 +268,11 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
   );
 }
 
+export async function setReminderStatus(id, status) {
+  await pool.query('UPDATE reminders SET status = $1 WHERE id = $2', [status, id]);
+  return getReminderById(id);
+}
+
 export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description }) {
   await pool.query(
     `UPDATE reminders

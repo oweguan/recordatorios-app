@@ -13,7 +13,6 @@ import {
   deleteReminder,
   savePushSubscription,
   deletePushSubscription,
-  updateReminderGoogleEventId,
   listProjects,
   getProjectById,
   findOrCreateProjectByName,
@@ -38,59 +37,9 @@ import {
   backupToDrive,
   listDriveBackups,
   downloadDriveBackup,
-  createCalendarEvent,
-  updateCalendarEvent,
-  deleteCalendarEvent,
 } from './google.js';
-
-async function syncCreateToCalendar(reminder) {
-  try {
-    if (!(await isGoogleConnected())) return;
-    const eventId = await createCalendarEvent(reminder);
-    await updateReminderGoogleEventId(reminder.id, eventId);
-  } catch (err) {
-    console.warn('No se pudo sincronizar con Calendar:', err.message);
-  }
-}
-
-async function syncUpdateToCalendar(reminder) {
-  try {
-    if (!reminder.google_event_id) return;
-    await updateCalendarEvent(reminder.google_event_id, reminder);
-  } catch (err) {
-    console.warn('No se pudo actualizar el evento de Calendar:', err.message);
-  }
-}
-
-async function syncDeleteFromCalendar(reminder) {
-  try {
-    if (!reminder.google_event_id) return;
-    await deleteCalendarEvent(reminder.google_event_id);
-  } catch (err) {
-    console.warn('No se pudo eliminar el evento de Calendar:', err.message);
-  }
-}
-
-async function syncAllPendingToCalendar() {
-  const all = await listReminders();
-  const pending = all.filter((r) => r.status === 'pending');
-
-  let synced = 0;
-  for (const reminder of pending) {
-    try {
-      if (reminder.google_event_id) {
-        // recrea el evento para asegurarse de que vive en el calendario "Tareas"
-        await deleteCalendarEvent(reminder.google_event_id);
-      }
-      const eventId = await createCalendarEvent(reminder);
-      await updateReminderGoogleEventId(reminder.id, eventId);
-      synced++;
-    } catch (err) {
-      console.warn(`No se pudo sincronizar el recordatorio #${reminder.id}:`, err.message);
-    }
-  }
-  return synced;
-}
+import { syncCreateToCalendar, syncUpdateToCalendar, syncDeleteFromCalendar, syncAllPendingToCalendar } from './calendarSync.js';
+import { completeReminder, uncompleteReminder } from './reminderActions.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(__dirname, '..', '..', 'client');
@@ -320,6 +269,20 @@ app.delete('/api/reminders/:id', async (req, res) => {
   res.status(204).end();
 });
 
+// Completar una tarea es no destructivo (status "done", recuperable desde Explorar). Si es
+// recurrente, se reprograma a la siguiente ocurrencia en vez de "completarse" para siempre.
+app.post('/api/reminders/:id/complete', async (req, res) => {
+  const updated = await completeReminder(Number(req.params.id));
+  if (!updated) return res.status(404).json({ error: 'Recordatorio no encontrado' });
+  res.json(updated);
+});
+
+app.post('/api/reminders/:id/uncomplete', async (req, res) => {
+  const updated = await uncompleteReminder(Number(req.params.id));
+  if (!updated) return res.status(404).json({ error: 'Recordatorio no encontrado' });
+  res.json(updated);
+});
+
 app.get('/api/projects', async (req, res) => {
   res.json(await listProjects());
 });
@@ -437,7 +400,7 @@ app.post('/api/google/restore/:fileId', async (req, res) => {
     const backupReminders = await downloadDriveBackup(req.params.fileId);
     let restored = 0;
     for (const r of backupReminders) {
-      if (r.status !== 'pending') continue;
+      if (r.status === 'done') continue;
       await createReminder({
         originalText: r.original_text,
         task: r.task,

@@ -1,6 +1,8 @@
 import 'dotenv/config';
 import TelegramBot from 'node-telegram-bot-api';
 import { getReminderById, updateReminder, deleteReminder } from './db/index.js';
+import { completeReminder } from './reminderActions.js';
+import { syncUpdateToCalendar, syncDeleteFromCalendar } from './calendarSync.js';
 
 const token = process.env.TELEGRAM_BOT_TOKEN;
 if (!token) {
@@ -79,12 +81,24 @@ export async function handleCallbackQuery(query) {
   }
 
   if (action === 'done') {
-    await bot.answerCallbackQuery(query.id, { text: 'Marcado como hecho' });
-    await bot.editMessageText(`✅ ${reminder.task}`, { chat_id: chatId, message_id: messageId });
+    const updated = await completeReminder(id);
+    const wasRescheduled = updated && updated.status === 'pending';
+    await bot.answerCallbackQuery(query.id, { text: wasRescheduled ? 'Reprogramado' : 'Marcado como hecho' });
+    const label = wasRescheduled ? `🔁 ${reminder.task} — reprogramado a la siguiente ocurrencia` : `✅ ${reminder.task}`;
+    await bot.editMessageText(label, { chat_id: chatId, message_id: messageId });
   } else if (action === 'postpone') {
     const minutes = Number(extra);
     const newDue = new Date(Date.now() + minutes * 60000).toISOString();
-    await updateReminder(id, { task: reminder.task, dueAt: newDue, notifyAt: newDue });
+    const updated = await updateReminder(id, {
+      task: reminder.task,
+      dueAt: newDue,
+      notifyAt: newDue,
+      priority: reminder.priority,
+      labels: reminder.labels,
+      projectId: reminder.project_id,
+      description: reminder.description,
+    });
+    syncUpdateToCalendar(updated);
     await bot.answerCallbackQuery(query.id, { text: `Pospuesto ${minutes} min` });
     await bot.editMessageText(`⏰ ${reminder.task} — pospuesto, nuevo aviso en ${minutes} min`, {
       chat_id: chatId,
@@ -92,6 +106,7 @@ export async function handleCallbackQuery(query) {
     });
   } else if (action === 'cancel') {
     await deleteReminder(id);
+    syncDeleteFromCalendar(reminder);
     await bot.answerCallbackQuery(query.id, { text: 'Cancelado' });
     await bot.editMessageText(`🗑️ ${reminder.task} (cancelado)`, { chat_id: chatId, message_id: messageId });
   }

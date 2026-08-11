@@ -158,7 +158,7 @@ function renderProjectsList() {
 
   el.innerHTML = allProjects
     .map((p) => {
-      const count = allReminders.filter((r) => r.project_id === p.id && r.status === 'pending').length;
+      const count = allReminders.filter((r) => r.project_id === p.id && r.status !== 'done').length;
       return `<button type="button" class="project-card" data-action="open-project" data-project-id="${p.id}">
         <span class="project-dot" style="--pc:${p.color}"></span>
         <span class="project-card-name">${escapeHtml(p.name)}</span>
@@ -907,22 +907,25 @@ function renderSubtasksList(r) {
 }
 
 function renderReminderView(r) {
+  const isDone = r.status === 'done';
   const recurrence = RECURRENCE_LABEL[r.recurrence]
     ? `<span class="recurrence">${ICONS.repeat}${RECURRENCE_LABEL[r.recurrence]}</span>`
     : '';
   const meta = r.due_at
     ? `<span class="task-meta">${ICONS.clock}${formatDue(r.due_at)}${recurrence}${subtaskSummary(r)}</span>`
     : `<span class="task-meta">Sin fecha${subtaskSummary(r)}</span>`;
-  const postponeButtons = r.due_at
+  const postponeButtons = r.due_at && !isDone
     ? `<button class="pill" data-action="postpone" data-minutes="60" title="Posponer 1 hora">+1h</button>
        <button class="pill" data-action="postpone" data-minutes="1440" title="Posponer 1 día">+1d</button>`
     : '';
+  const checkAction = isDone ? 'uncomplete' : 'complete';
+  const checkLabel = isDone ? 'Marcar como pendiente' : 'Completar';
 
   return `
     <div class="reminder-row" data-id="${r.id}">
-      <button class="check-circle" data-action="complete" aria-label="Completar">${ICONS.check}</button>
+      <button class="check-circle${isDone ? ' checked' : ''}" data-action="${checkAction}" aria-label="${checkLabel}" title="${checkLabel}">${ICONS.check}</button>
       <div class="reminder-info">
-        <span class="task-text">${priorityFlag(r.priority)}${escapeHtml(r.task)}</span>
+        <span class="task-text${isDone ? ' done' : ''}">${priorityFlag(r.priority)}${escapeHtml(r.task)}</span>
         ${meta}
         ${descriptionPreview(r.description)}
         ${tagsRow(r)}
@@ -972,7 +975,10 @@ function renderReminderEdit(r) {
       <div class="reminder-edit-form">
         <input type="text" class="edit-task" value="${escapeHtml(r.task)}" />
         <textarea class="edit-description" placeholder="Descripción (opcional)">${escapeHtml(r.description || '')}</textarea>
-        <input type="datetime-local" class="edit-due" value="${toDatetimeLocalValue(r.due_at)}" />
+        <div class="edit-due-row">
+          <input type="datetime-local" class="edit-due" value="${r.due_at ? toDatetimeLocalValue(r.due_at) : ''}" />
+          <button type="button" class="clear-due-btn" data-action="clear-due" title="Quitar fecha (mover a Bandeja de entrada)">✕</button>
+        </div>
         <div class="edit-priority-picker">
           ${[1, 2, 3, 4]
             .map(
@@ -1024,12 +1030,14 @@ document.body.addEventListener('click', async (e) => {
   if (!button) return;
   const validActions = [
     'complete',
+    'uncomplete',
     'edit',
     'cancel-edit',
     'delete',
     'postpone',
     'save-edit',
     'pick-priority',
+    'clear-due',
     'toggle-subtasks',
     'toggle-subtask-done',
     'delete-subtask',
@@ -1043,11 +1051,16 @@ document.body.addEventListener('click', async (e) => {
   const action = button.dataset.action;
 
   if (action === 'complete') {
+    // No destructivo: pasa a status "done" (recuperable desde Explorar > Completadas). Si es
+    // recurrente, el servidor la reprograma a la siguiente ocurrencia en vez de completarla.
     item.classList.add('completing');
     setTimeout(async () => {
-      await fetch(`/api/reminders/${id}`, { method: 'DELETE' });
+      await fetch(`/api/reminders/${id}/complete`, { method: 'POST' });
       refreshData();
     }, 320);
+  } else if (action === 'uncomplete') {
+    await fetch(`/api/reminders/${id}/uncomplete`, { method: 'POST' });
+    refreshData();
   } else if (action === 'edit') {
     editingIds.add(id);
     renderCurrentPage();
@@ -1099,10 +1112,13 @@ document.body.addEventListener('click', async (e) => {
       body: JSON.stringify({ text }),
     });
     await refreshSubtasksInPlace(id, item);
+  } else if (action === 'clear-due') {
+    item.querySelector('.edit-due').value = '';
   } else if (action === 'save-edit') {
     const task = item.querySelector('.edit-task').value.trim();
+    if (!task) return;
+    // La fecha es opcional: dejarla vacia guarda la tarea sin fecha (vuelve a la Bandeja de entrada).
     const dueLocal = item.querySelector('.edit-due').value;
-    if (!task || !dueLocal) return;
 
     const priority = Number(item.dataset.priority) || 4;
     const labelsRaw = item.querySelector('.edit-labels').value;
@@ -1114,7 +1130,14 @@ document.body.addEventListener('click', async (e) => {
     await fetch(`/api/reminders/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ task, dueAt: new Date(dueLocal).toISOString(), priority, labels, projectId, description }),
+      body: JSON.stringify({
+        task,
+        dueAt: dueLocal ? new Date(dueLocal).toISOString() : null,
+        priority,
+        labels,
+        projectId,
+        description,
+      }),
     });
     editingIds.delete(id);
     refreshData();
@@ -1138,8 +1161,10 @@ function dayBucket(iso) {
   return 'Más adelante';
 }
 
+// "Activa" = no completada (incluye tareas ya avisadas pero que el usuario no ha marcado como
+// hechas, para que no desaparezcan solas de Hoy/Bandeja/Proximo al dispararse el aviso).
 function pendingDated() {
-  return allReminders.filter((r) => r.status === 'pending' && r.due_at);
+  return allReminders.filter((r) => r.status !== 'done' && r.due_at);
 }
 
 function updateHeaderCounts() {
@@ -1148,7 +1173,7 @@ function updateHeaderCounts() {
 }
 
 function renderInbox() {
-  const items = allReminders.filter((r) => r.status === 'pending' && !r.due_at);
+  const items = allReminders.filter((r) => r.status !== 'done' && !r.due_at);
   renderList(
     document.getElementById('inboxList'),
     items,
@@ -1265,7 +1290,8 @@ function renderExploreProjectFilters() {
 function renderExplore() {
   const q = searchInput.value.trim().toLowerCase();
   let items = allReminders;
-  if (exploreFilter !== 'all') items = items.filter((r) => r.status === exploreFilter);
+  if (exploreFilter === 'pending') items = items.filter((r) => r.status !== 'done');
+  else if (exploreFilter === 'done') items = items.filter((r) => r.status === 'done');
   if (exploreProjectFilter !== null) items = items.filter((r) => r.project_id === exploreProjectFilter);
   if (q) {
     items = items.filter(

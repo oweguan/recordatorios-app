@@ -300,6 +300,11 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
     .run(nextDueAt, nextNotifyAt ?? nextDueAt, id);
 }
 
+export async function setReminderStatus(id, status) {
+  db.prepare('UPDATE reminders SET status = ? WHERE id = ?').run(status, id);
+  return getReminderById(id);
+}
+
 export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description }) {
   db.prepare(`
     UPDATE reminders
