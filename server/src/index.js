@@ -14,8 +14,18 @@ import {
   savePushSubscription,
   deletePushSubscription,
   updateReminderGoogleEventId,
+  listProjects,
+  getProjectById,
+  findOrCreateProjectByName,
+  createProject,
+  updateProject,
+  deleteProject,
+  createSubtask,
+  getSubtaskById,
+  updateSubtask,
+  deleteSubtask,
 } from './db/index.js';
-import { parseReminderText, extractPriority, extractLabels } from './parser.js';
+import { parseReminderText, extractPriority, extractLabels, extractProject } from './parser.js';
 import { parseWithLLM } from './llmParser.js';
 import { startScheduler, sendDailySummary } from './scheduler.js';
 import { isPushEnabled } from './push.js';
@@ -128,13 +138,20 @@ app.post('/api/reminders', async (req, res) => {
 
   const { priority, text: withoutPriority } = extractPriority(text);
   const { labels, text: withoutLabels } = extractLabels(withoutPriority);
+  const { project: projectName, text: withoutProject } = extractProject(withoutLabels);
+
+  let projectId = null;
+  if (projectName) {
+    const project = await findOrCreateProjectByName(projectName);
+    projectId = project.id;
+  }
 
   let parsed = null;
   let usedLLM = false;
 
   if (process.env.GROQ_API_KEY) {
     try {
-      parsed = await parseWithLLM(withoutLabels);
+      parsed = await parseWithLLM(withoutProject);
       usedLLM = true;
     } catch (err) {
       console.warn('Groq no disponible, usando parser de reglas:', err.message);
@@ -142,7 +159,7 @@ app.post('/api/reminders', async (req, res) => {
   }
 
   if (!parsed || !parsed.dueAt) {
-    parsed = parseReminderText(withoutLabels);
+    parsed = parseReminderText(withoutProject);
     usedLLM = false;
   }
 
@@ -151,13 +168,14 @@ app.post('/api/reminders', async (req, res) => {
   // Sin fecha detectada: se guarda igualmente en la Bandeja de entrada, sin aviso programado.
   const reminder = await createReminder({
     originalText: text,
-    task: task || withoutLabels || text,
+    task: task || withoutProject || text,
     dueAt: dueAt ? dueAt.toISOString() : null,
     notifyAt: dueAt ? notifyAt.toISOString() : null,
     recurrence: req.body.recurrence ?? recurrence,
     chatId,
     priority,
     labels,
+    projectId,
   });
 
   if (dueAt) {
@@ -194,6 +212,16 @@ app.patch('/api/reminders/:id', async (req, res) => {
     labels = req.body.labels.map((l) => String(l).toLowerCase().trim()).filter(Boolean);
   }
 
+  let projectId = existing.project_id ?? null;
+  if (Object.prototype.hasOwnProperty.call(req.body, 'projectId')) {
+    projectId = req.body.projectId === null ? null : Number(req.body.projectId);
+  }
+
+  let description = existing.description ?? null;
+  if (Object.prototype.hasOwnProperty.call(req.body, 'description')) {
+    description = typeof req.body.description === 'string' ? req.body.description.trim() || null : null;
+  }
+
   if (Object.prototype.hasOwnProperty.call(req.body, 'dueAt')) {
     if (req.body.dueAt === null) {
       dueAt = null;
@@ -212,7 +240,7 @@ app.patch('/api/reminders/:id', async (req, res) => {
     }
   }
 
-  const updated = await updateReminder(id, { task, dueAt, notifyAt, priority, labels });
+  const updated = await updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description });
   syncUpdateToCalendar(updated);
   res.json(updated);
 });
@@ -243,6 +271,8 @@ app.post('/api/reminders/:id/postpone', async (req, res) => {
     notifyAt,
     priority: existing.priority,
     labels: existing.labels,
+    projectId: existing.project_id,
+    description: existing.description,
   });
   syncUpdateToCalendar(updated);
   res.json(updated);
@@ -283,6 +313,60 @@ app.delete('/api/reminders/:id', async (req, res) => {
 
   await deleteReminder(id);
   syncDeleteFromCalendar(existing);
+  res.status(204).end();
+});
+
+app.get('/api/projects', async (req, res) => {
+  res.json(await listProjects());
+});
+
+app.post('/api/projects', async (req, res) => {
+  const name = (req.body.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name es obligatorio' });
+  res.status(201).json(await createProject({ name }));
+});
+
+app.patch('/api/projects/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const existing = await getProjectById(id);
+  if (!existing) return res.status(404).json({ error: 'Proyecto no encontrado' });
+
+  const name = typeof req.body.name === 'string' && req.body.name.trim() ? req.body.name.trim() : existing.name;
+  const color = typeof req.body.color === 'string' && req.body.color.trim() ? req.body.color.trim() : existing.color;
+  res.json(await updateProject(id, { name, color }));
+});
+
+app.delete('/api/projects/:id', async (req, res) => {
+  const existing = await getProjectById(Number(req.params.id));
+  if (!existing) return res.status(404).json({ error: 'Proyecto no encontrado' });
+  await deleteProject(existing.id);
+  res.status(204).end();
+});
+
+app.post('/api/reminders/:id/subtasks', async (req, res) => {
+  const reminderId = Number(req.params.id);
+  const existing = await getReminderById(reminderId);
+  if (!existing) return res.status(404).json({ error: 'Recordatorio no encontrado' });
+
+  const text = (req.body.text || '').trim();
+  if (!text) return res.status(400).json({ error: 'text es obligatorio' });
+  res.status(201).json(await createSubtask(reminderId, text));
+});
+
+app.patch('/api/subtasks/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const existing = await getSubtaskById(id);
+  if (!existing) return res.status(404).json({ error: 'Subtarea no encontrada' });
+
+  const text = typeof req.body.text === 'string' && req.body.text.trim() ? req.body.text.trim() : existing.text;
+  const done = typeof req.body.done === 'boolean' ? req.body.done : existing.done;
+  res.json(await updateSubtask(id, { text, done }));
+});
+
+app.delete('/api/subtasks/:id', async (req, res) => {
+  const existing = await getSubtaskById(Number(req.params.id));
+  if (!existing) return res.status(404).json({ error: 'Subtarea no encontrada' });
+  await deleteSubtask(existing.id);
   res.status(204).end();
 });
 
@@ -359,6 +443,8 @@ app.post('/api/google/restore/:fileId', async (req, res) => {
         chatId: r.chat_id,
         priority: r.priority,
         labels: r.labels,
+        projectId: r.project_id,
+        description: r.description,
       });
       restored++;
     }

@@ -29,6 +29,19 @@ function cleanTask(raw) {
 
 const PRIORITY_PATTERN = /(?:^|\s)p([1-4])(?=\s|$)/i;
 const LABEL_PATTERN = /(?:^|\s)@([\p{L}0-9_-]+)/gu;
+const PROJECT_PATTERN = /(?:^|\s)#([\p{L}0-9_-]+)/u;
+
+// Detecta "#proyecto" (estilo Todoist) y lo separa del resto del texto. Solo un proyecto por tarea.
+export function extractProject(text) {
+  const match = text.match(PROJECT_PATTERN);
+  if (!match) return { project: null, text };
+
+  const project = match[1].toLowerCase();
+  const cleaned = (text.slice(0, match.index) + text.slice(match.index + match[0].length))
+    .replace(/\s+/g, ' ')
+    .trim();
+  return { project, text: cleaned };
+}
 
 // Detecta "p1".."p4" (estilo Todoist) y los separa del resto del texto. Prioridad 4 = sin prioridad.
 export function extractPriority(text) {

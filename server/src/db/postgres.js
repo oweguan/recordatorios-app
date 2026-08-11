@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { nextProjectColor } from '../projectColors.js';
 
 const { Pool } = pg;
 
@@ -44,6 +45,29 @@ export async function init() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS projects (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      color TEXT NOT NULL DEFAULT '#808080',
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS subtasks (
+      id SERIAL PRIMARY KEY,
+      reminder_id INTEGER NOT NULL,
+      text TEXT NOT NULL,
+      done BOOLEAN NOT NULL DEFAULT false,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS project_id INTEGER`);
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS description TEXT`);
+
   // Permite recordatorios sin fecha (bandeja de entrada).
   await pool.query(`ALTER TABLE reminders ALTER COLUMN due_at DROP NOT NULL`);
   await pool.query(`ALTER TABLE reminders ALTER COLUMN notify_at DROP NOT NULL`);
@@ -52,6 +76,101 @@ export async function init() {
 function parseRow(row) {
   if (!row) return row;
   return { ...row, labels: row.labels ? JSON.parse(row.labels) : [] };
+}
+
+async function attachSubtasksToList(reminders) {
+  if (reminders.length === 0) return reminders;
+  const ids = reminders.map((r) => r.id);
+  const result = await pool.query('SELECT * FROM subtasks WHERE reminder_id = ANY($1) ORDER BY sort_order ASC, id ASC', [ids]);
+  const grouped = new Map();
+  for (const row of result.rows) {
+    const list = grouped.get(row.reminder_id) || [];
+    list.push(row);
+    grouped.set(row.reminder_id, list);
+  }
+  return reminders.map((r) => ({ ...r, subtasks: grouped.get(r.id) || [] }));
+}
+
+async function attachSubtasks(reminder) {
+  if (!reminder) return reminder;
+  return (await attachSubtasksToList([reminder]))[0];
+}
+
+// --- Proyectos ---
+
+export async function listProjects() {
+  const result = await pool.query('SELECT * FROM projects ORDER BY id ASC');
+  return result.rows;
+}
+
+export async function getProjectById(id) {
+  const result = await pool.query('SELECT * FROM projects WHERE id = $1', [id]);
+  return result.rows[0];
+}
+
+export async function findOrCreateProjectByName(name) {
+  const existing = await pool.query('SELECT * FROM projects WHERE LOWER(name) = LOWER($1)', [name]);
+  if (existing.rows[0]) return existing.rows[0];
+  const countRes = await pool.query('SELECT COUNT(*)::int AS c FROM projects');
+  const result = await pool.query('INSERT INTO projects (name, color) VALUES ($1, $2) RETURNING *', [
+    name,
+    nextProjectColor(countRes.rows[0].c),
+  ]);
+  return result.rows[0];
+}
+
+export async function createProject({ name, color }) {
+  const existing = await pool.query('SELECT * FROM projects WHERE LOWER(name) = LOWER($1)', [name]);
+  if (existing.rows[0]) return existing.rows[0];
+  const countRes = await pool.query('SELECT COUNT(*)::int AS c FROM projects');
+  const result = await pool.query('INSERT INTO projects (name, color) VALUES ($1, $2) RETURNING *', [
+    name,
+    color || nextProjectColor(countRes.rows[0].c),
+  ]);
+  return result.rows[0];
+}
+
+export async function updateProject(id, { name, color }) {
+  const result = await pool.query('UPDATE projects SET name = $1, color = $2 WHERE id = $3 RETURNING *', [
+    name,
+    color,
+    id,
+  ]);
+  return result.rows[0];
+}
+
+export async function deleteProject(id) {
+  await pool.query('UPDATE reminders SET project_id = NULL WHERE project_id = $1', [id]);
+  await pool.query('DELETE FROM projects WHERE id = $1', [id]);
+}
+
+// --- Subtareas ---
+
+export async function createSubtask(reminderId, text) {
+  const countRes = await pool.query('SELECT COUNT(*)::int AS c FROM subtasks WHERE reminder_id = $1', [reminderId]);
+  const result = await pool.query(
+    'INSERT INTO subtasks (reminder_id, text, sort_order) VALUES ($1, $2, $3) RETURNING *',
+    [reminderId, text, countRes.rows[0].c]
+  );
+  return result.rows[0];
+}
+
+export async function getSubtaskById(id) {
+  const result = await pool.query('SELECT * FROM subtasks WHERE id = $1', [id]);
+  return result.rows[0];
+}
+
+export async function updateSubtask(id, { text, done }) {
+  const result = await pool.query('UPDATE subtasks SET text = $1, done = $2 WHERE id = $3 RETURNING *', [
+    text,
+    Boolean(done),
+    id,
+  ]);
+  return result.rows[0];
+}
+
+export async function deleteSubtask(id) {
+  await pool.query('DELETE FROM subtasks WHERE id = $1', [id]);
 }
 
 export async function saveGoogleAuth({ refreshToken }) {
@@ -89,10 +208,21 @@ export async function deletePushSubscription(endpoint) {
   await pool.query('DELETE FROM push_subscriptions WHERE endpoint = $1', [endpoint]);
 }
 
-export async function createReminder({ originalText, task, dueAt, notifyAt, recurrence, chatId, priority, labels }) {
+export async function createReminder({
+  originalText,
+  task,
+  dueAt,
+  notifyAt,
+  recurrence,
+  chatId,
+  priority,
+  labels,
+  projectId,
+  description,
+}) {
   const result = await pool.query(
-    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING *`,
     [
       originalText,
       task,
@@ -102,19 +232,21 @@ export async function createReminder({ originalText, task, dueAt, notifyAt, recu
       String(chatId),
       priority ?? 4,
       JSON.stringify(labels ?? []),
+      projectId ?? null,
+      description ?? null,
     ]
   );
-  return parseRow(result.rows[0]);
+  return getReminderById(result.rows[0].id);
 }
 
 export async function getReminderById(id) {
   const result = await pool.query('SELECT * FROM reminders WHERE id = $1', [id]);
-  return parseRow(result.rows[0]);
+  return attachSubtasks(parseRow(result.rows[0]));
 }
 
 export async function listReminders() {
   const result = await pool.query('SELECT * FROM reminders ORDER BY due_at ASC NULLS FIRST');
-  return result.rows.map(parseRow);
+  return attachSubtasksToList(result.rows.map(parseRow));
 }
 
 export async function getDueReminders(nowIso) {
@@ -136,15 +268,26 @@ export async function rescheduleRecurring(id, nextDueAt, nextNotifyAt) {
   );
 }
 
-export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels }) {
-  const result = await pool.query(
-    `UPDATE reminders SET task = $1, due_at = $2, notify_at = $3, status = 'pending', priority = $4, labels = $5
-     WHERE id = $6 RETURNING *`,
-    [task, dueAt ?? null, notifyAt ?? null, priority ?? 4, JSON.stringify(labels ?? []), id]
+export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description }) {
+  await pool.query(
+    `UPDATE reminders
+     SET task = $1, due_at = $2, notify_at = $3, status = 'pending', priority = $4, labels = $5, project_id = $6, description = $7
+     WHERE id = $8`,
+    [
+      task,
+      dueAt ?? null,
+      notifyAt ?? null,
+      priority ?? 4,
+      JSON.stringify(labels ?? []),
+      projectId ?? null,
+      description ?? null,
+      id,
+    ]
   );
-  return parseRow(result.rows[0]);
+  return getReminderById(id);
 }
 
 export async function deleteReminder(id) {
+  await pool.query('DELETE FROM subtasks WHERE reminder_id = $1', [id]);
   await pool.query('DELETE FROM reminders WHERE id = $1', [id]);
 }

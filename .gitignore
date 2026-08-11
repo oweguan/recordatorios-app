@@ -3,3 +3,4 @@ node_modules/
 *.db
 *.db-journal
 server/chat_id.txt
+DOCUMENTACION-PROYECTO.md

@@ -504,6 +504,131 @@ body {
   padding: 2px 8px;
 }
 
+.project-chip {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--pc, var(--accent));
+  background: var(--btn);
+  border: 1px solid var(--pc, transparent);
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+.task-description {
+  display: block;
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.subtask-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: 0.78rem;
+  font-family: inherit;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 6px;
+}
+
+.subtask-toggle svg {
+  width: 12px;
+  height: 12px;
+}
+
+.subtasks-list {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.subtask-row,
+.subtask-edit-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.subtask-check {
+  flex-shrink: 0;
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  border: 2px solid var(--border);
+  background: transparent;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  padding: 0;
+}
+
+.subtask-check svg {
+  width: 9px;
+  height: 9px;
+}
+
+.subtask-check.done {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.subtask-text {
+  font-size: 0.85rem;
+  flex: 1;
+}
+
+.subtask-text.done {
+  text-decoration: line-through;
+  color: var(--text-dim);
+}
+
+.subtask-edit-row button[data-action="delete-subtask"] {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+}
+
+.subtask-edit-row button[data-action="delete-subtask"] svg {
+  width: 13px;
+  height: 13px;
+}
+
+.subtask-add-row {
+  display: flex;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.subtask-add-row input {
+  flex: 1;
+  padding: 7px 10px !important;
+  font-size: 0.85rem !important;
+}
+
+.subtask-add-row button {
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--btn);
+  color: var(--text);
+  font-size: 0.82rem;
+  cursor: pointer;
+}
+
 .edit-priority-picker {
   display: flex;
   gap: 6px;
@@ -550,13 +675,31 @@ body {
   gap: 8px;
 }
 
-.reminder-edit-form input {
+.reminder-edit-form input,
+.reminder-edit-form select,
+.reminder-edit-form textarea {
   padding: 9px 11px;
   border-radius: 8px;
   border: 1px solid var(--border);
   background: var(--card-alt);
   color: var(--text);
   font-size: 0.9rem;
+  font-family: inherit;
+}
+
+.reminder-edit-form textarea {
+  resize: vertical;
+  min-height: 50px;
+}
+
+.edit-subtasks {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px;
+  border-radius: 8px;
+  background: var(--card-alt);
+  border: 1px solid var(--border);
 }
 
 .reminder-edit-actions {
@@ -686,6 +829,43 @@ body {
   padding: 5px 10px;
   font-size: 0.8rem;
   cursor: pointer;
+}
+
+.project-row {
+  background: var(--card-alt);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.project-row-actions {
+  display: flex;
+  gap: 2px;
+}
+
+.project-row-actions button {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.project-row-actions button svg {
+  width: 14px;
+  height: 14px;
+}
+
+.project-row-actions button:hover {
+  background: var(--btn);
+  color: var(--text);
 }
 
 /* ==================== Onboarding ==================== */
@@ -1107,6 +1287,15 @@ body {
   background: var(--accent);
   border-color: var(--accent);
   color: white;
+}
+
+.explore-filters-projects {
+  flex-wrap: wrap;
+  margin-top: -6px;
+}
+
+.explore-filters-projects:empty {
+  display: none;
 }
 
 /* ==================== Estado vacio con icono ==================== */
