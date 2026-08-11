@@ -140,8 +140,12 @@ app.post('/api/reminders', async (req, res) => {
   const { labels, text: withoutLabels } = extractLabels(withoutPriority);
   const { project: projectName, text: withoutProject } = extractProject(withoutLabels);
 
+  // Si se pasa projectId explicito (p.ej. anadiendo una tarea desde la vista de un proyecto),
+  // tiene prioridad sobre el #proyecto detectado en el texto.
   let projectId = null;
-  if (projectName) {
+  if (req.body.projectId) {
+    projectId = Number(req.body.projectId);
+  } else if (projectName) {
     const project = await findOrCreateProjectByName(projectName);
     projectId = project.id;
   }

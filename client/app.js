@@ -20,11 +20,18 @@ const ICONS = {
   camera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>',
   flag: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M5 21V4c0-.55.45-1 1-1 2 1.5 4.5 1.5 7 0 2.5 1.5 5 1.5 6.5 0 .3-.3.8-.1.8.3v10c0 .3-.5.5-.8.3-1.5-1.5-4-1.5-6.5 0-2.5 1.5-5 1.5-7 0V21c0 .55-.45 1-1 1z"/></svg>',
   checklist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 5 10 9 6"/><line x1="12" y1="8" x2="21" y2="8"/><polyline points="3 17 5 19 9 15"/><line x1="12" y1="17" x2="21" y2="17"/></svg>',
+  folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>',
 };
 
 const PRIORITY_COLORS = { 1: '#e63946', 2: '#f4a52a', 3: '#4a90e2', 4: 'transparent' };
 
-const NAV_ICONS = { inbox: ICONS.inbox, today: ICONS.today, upcoming: ICONS.calendar, explore: ICONS.search };
+const NAV_ICONS = {
+  inbox: ICONS.inbox,
+  today: ICONS.today,
+  upcoming: ICONS.calendar,
+  projects: ICONS.folder,
+  explore: ICONS.search,
+};
 
 // ==================== Elementos ====================
 
@@ -47,9 +54,12 @@ settingsBack.innerHTML = ICONS.arrowLeft;
 document.getElementById('readTodayBtn').innerHTML = ICONS.volume;
 document.getElementById('pushToggle').innerHTML = ICONS.bell;
 document.getElementById('googleToggle').innerHTML = ICONS.cloud;
-document.querySelectorAll('[data-action="open-quick-add"]').forEach((btn) => {
+document.querySelectorAll('[data-action="open-quick-add"], [data-action="add-project"]').forEach((btn) => {
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 });
+document.querySelector('[data-action="back-to-projects"]').innerHTML = ICONS.arrowLeft;
+document.querySelector('[data-action="rename-current-project"]').innerHTML = ICONS.edit;
+document.querySelector('[data-action="delete-current-project"]').innerHTML = ICONS.trash;
 document.getElementById('calPrev').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
 document.getElementById('calNext').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
 document.getElementById('calWeekdays').innerHTML = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('');
@@ -131,69 +141,124 @@ document.getElementById('settingsProfileName').addEventListener('click', () => {
   applyProfileToUI();
 });
 
-// ==================== Proyectos (Ajustes) ====================
+// ==================== Pestaña Proyectos ====================
+// currentProjectId: null = vista de lista de proyectos; numero = detalle de un proyecto abierto.
 
-function renderSettingsProjects() {
-  const el = document.getElementById('settingsProjectsList');
-  if (!el) return;
+let currentProjectId = null;
 
+function renderProjectsList() {
+  const el = document.getElementById('projectsList');
   if (allProjects.length === 0) {
-    el.innerHTML = '<div class="empty">Aún no tienes proyectos. Escribe #proyecto al añadir una tarea, o créalo aquí.</div>';
+    el.innerHTML = `<div class="empty-hero">
+      <div class="icon-circle">${ICONS.folder}</div>
+      <p>Crea proyectos para agrupar tus tareas, como "Trabajo" o "Casa". Escribe #proyecto al añadir una tarea, o créalo aquí con el botón +.</p>
+    </div>`;
     return;
   }
 
   el.innerHTML = allProjects
-    .map(
-      (p) => `
-      <div class="settings-row project-row" data-project-id="${p.id}">
-        <span class="project-chip" style="--pc:${p.color}">#${escapeHtml(p.name)}</span>
-        <div class="project-row-actions">
-          <button type="button" data-action="rename-project" title="Renombrar" aria-label="Renombrar">${ICONS.edit}</button>
-          <button type="button" data-action="delete-project" title="Eliminar" aria-label="Eliminar">${ICONS.trash}</button>
-        </div>
-      </div>`
-    )
+    .map((p) => {
+      const count = allReminders.filter((r) => r.project_id === p.id && r.status === 'pending').length;
+      return `<button type="button" class="project-card" data-action="open-project" data-project-id="${p.id}">
+        <span class="project-dot" style="--pc:${p.color}"></span>
+        <span class="project-card-name">${escapeHtml(p.name)}</span>
+        <span class="project-card-count">${count}</span>
+      </button>`;
+    })
     .join('');
 }
 
-document.getElementById('settingsProjectsList').addEventListener('click', async (e) => {
+function renderProjectDetail(project) {
+  document.getElementById('projectDetailName').textContent = project.name;
+
+  const items = allReminders
+    .filter((r) => r.project_id === project.id)
+    .sort((a, b) => {
+      if (!a.due_at && !b.due_at) return 0;
+      if (!a.due_at) return -1;
+      if (!b.due_at) return 1;
+      return new Date(a.due_at) - new Date(b.due_at);
+    });
+
+  renderList(
+    document.getElementById('projectTaskList'),
+    items,
+    '<div class="empty">Sin tareas en este proyecto todavía</div>'
+  );
+}
+
+function renderProjectsPage() {
+  const listView = document.getElementById('projectsListView');
+  const detailView = document.getElementById('projectDetailView');
+
+  if (currentProjectId === null) {
+    listView.hidden = false;
+    detailView.hidden = true;
+    renderProjectsList();
+    return;
+  }
+
+  const project = allProjects.find((p) => p.id === currentProjectId);
+  if (!project) {
+    currentProjectId = null;
+    renderProjectsPage();
+    return;
+  }
+
+  listView.hidden = true;
+  detailView.hidden = false;
+  renderProjectDetail(project);
+}
+
+document.querySelector('section.app-page[data-page="projects"]').addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
   if (!button) return;
-  const row = button.closest('.project-row');
-  const projectId = Number(row.dataset.projectId);
-  const project = allProjects.find((p) => p.id === projectId);
-  if (!project) return;
+  const action = button.dataset.action;
 
-  if (button.dataset.action === 'rename-project') {
+  if (action === 'open-project') {
+    currentProjectId = Number(button.dataset.projectId);
+    renderProjectsPage();
+  } else if (action === 'add-project') {
+    const name = prompt('Nombre del nuevo proyecto');
+    if (!name || !name.trim()) return;
+    await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await refreshData();
+  } else if (action === 'back-to-projects') {
+    currentProjectId = null;
+    renderProjectsPage();
+  } else if (action === 'rename-current-project') {
+    const project = allProjects.find((p) => p.id === currentProjectId);
+    if (!project) return;
     const next = prompt('Nuevo nombre del proyecto', project.name);
     if (next === null || !next.trim()) return;
-    await fetch(`/api/projects/${projectId}`, {
+    await fetch(`/api/projects/${project.id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: next.trim() }),
     });
-    await refreshProjects();
-    renderSettingsProjects();
-    renderExploreProjectFilters();
-    renderCurrentPage();
-  } else if (button.dataset.action === 'delete-project') {
+    await refreshData();
+  } else if (action === 'delete-current-project') {
+    const project = allProjects.find((p) => p.id === currentProjectId);
+    if (!project) return;
     if (!confirm(`¿Eliminar el proyecto "${project.name}"? Las tareas no se borran, solo pierden la asignación.`)) return;
-    await fetch(`/api/projects/${projectId}`, { method: 'DELETE' });
+    await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
+    currentProjectId = null;
     await refreshData();
   }
 });
 
-document.getElementById('addProjectBtn').addEventListener('click', async () => {
-  const name = prompt('Nombre del nuevo proyecto');
-  if (!name || !name.trim()) return;
-  await fetch('/api/projects', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: name.trim() }),
-  });
-  await refreshProjects();
-  renderSettingsProjects();
-  renderExploreProjectFilters();
+document.getElementById('projectQuickAddForm').addEventListener('submit', (e) => {
+  e.preventDefault();
+  const input = document.getElementById('projectQuickAddInput');
+  const text = input.value.trim();
+  if (!text || currentProjectId === null) return;
+  submitReminder(text, { projectId: currentProjectId });
+  input.value = '';
+  updateQuickAddHints(input, document.getElementById('projectQuickAddHints'));
 });
 
 // ==================== Onboarding ====================
@@ -602,13 +667,13 @@ micBtn.addEventListener('click', () => {
 
 const RECURRENCE_LABEL = { daily: 'cada día', weekly: 'cada semana', monthly: 'cada mes' };
 
-async function submitReminder(text) {
+async function submitReminder(text, extra = {}) {
   statusEl.textContent = 'Procesando...';
   try {
     const res = await fetch('/api/reminders', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text }),
+      body: JSON.stringify({ text, ...extra }),
     });
     const data = await res.json();
 
@@ -776,6 +841,7 @@ function wireQuickAddHints(inputEl, hintsEl) {
 
 wireQuickAddHints(document.getElementById('textInput'), document.getElementById('textHints'));
 wireQuickAddHints(document.getElementById('quickAddInput'), document.getElementById('quickAddHints'));
+wireQuickAddHints(document.getElementById('projectQuickAddInput'), document.getElementById('projectQuickAddHints'));
 
 // ==================== Render de una fila de recordatorio ====================
 
@@ -1234,6 +1300,7 @@ function renderCurrentPage() {
     renderCalendar();
     renderUpcomingDayList();
   } else if (currentPage === 'explore') renderExplore();
+  else if (currentPage === 'projects') renderProjectsPage();
 
   updateHeaderCounts();
 }
@@ -1271,7 +1338,6 @@ async function refreshData() {
   }
   renderCurrentPage();
   renderExploreProjectFilters();
-  renderSettingsProjects();
 }
 
 // ==================== Leer tareas de hoy en voz alta ====================

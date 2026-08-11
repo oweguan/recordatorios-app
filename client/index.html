@@ -140,6 +140,35 @@
       <div id="exploreList" class="reminders"></div>
     </section>
 
+    <!-- Proyectos -->
+    <section class="app-page" data-page="projects" hidden>
+      <div id="projectsListView">
+        <div class="reminders">
+          <div class="reminders-header">
+            <h2>Proyectos</h2>
+            <button class="icon-button-sm" data-action="add-project" aria-label="Nuevo proyecto" title="Nuevo proyecto"></button>
+          </div>
+          <div id="projectsList"></div>
+        </div>
+      </div>
+
+      <div id="projectDetailView" hidden>
+        <div class="project-detail-header">
+          <button class="icon-button-sm" data-action="back-to-projects" aria-label="Volver" title="Volver"></button>
+          <h2 id="projectDetailName"></h2>
+          <div class="header-actions-inline">
+            <button class="icon-button-sm" data-action="rename-current-project" aria-label="Renombrar" title="Renombrar"></button>
+            <button class="icon-button-sm" data-action="delete-current-project" aria-label="Eliminar" title="Eliminar"></button>
+          </div>
+        </div>
+        <form id="projectQuickAddForm" class="quick-add">
+          <input id="projectQuickAddInput" type="text" placeholder="Añadir una tarea a este proyecto..." autocomplete="off" />
+        </form>
+        <div id="projectQuickAddHints" class="quick-add-hints" hidden></div>
+        <div id="projectTaskList" class="reminders"></div>
+      </div>
+    </section>
+
     <nav class="bottom-nav">
       <button class="nav-item active" data-page="inbox">
         <span class="nav-icon"></span>
@@ -152,6 +181,10 @@
       <button class="nav-item" data-page="upcoming">
         <span class="nav-icon"></span>
         <span>Próximo</span>
+      </button>
+      <button class="nav-item" data-page="projects">
+        <span class="nav-icon"></span>
+        <span>Proyectos</span>
       </button>
       <button class="nav-item" data-page="explore">
         <span class="nav-icon"></span>
@@ -190,14 +223,6 @@
           <img id="settingsAvatarPreview" alt="" hidden />
           <span id="settingsAvatarInitial"></span>
         </button>
-      </div>
-    </section>
-
-    <section class="settings-section">
-      <h2>Proyectos</h2>
-      <div id="settingsProjectsList"></div>
-      <div class="google-actions">
-        <button id="addProjectBtn" type="button">+ Nuevo proyecto</button>
       </div>
     </section>
 
