@@ -795,6 +795,49 @@ body {
   font-size: 0.95rem;
 }
 
+.settings-row + .settings-row {
+  margin-top: 14px;
+}
+
+.settings-select {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card-alt);
+  color: var(--text);
+  font-size: 0.85rem;
+  font-family: inherit;
+}
+
+.settings-link-btn {
+  border: none;
+  background: none;
+  color: var(--accent);
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 0 0;
+}
+
+.accent-swatches {
+  display: flex;
+  gap: 8px;
+}
+
+.accent-swatch {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  background: var(--sw);
+  cursor: pointer;
+  padding: 0;
+}
+
+.accent-swatch.active {
+  border-color: var(--text);
+}
+
 .settings-hint {
   font-size: 0.82rem;
   color: var(--text-dim);
@@ -1116,6 +1159,50 @@ body {
 
 .switch.active::after {
   transform: translateX(18px);
+}
+
+.ob-tabs-overview {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 6px 0 4px;
+}
+
+.ob-tab-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 4px;
+  text-align: left;
+}
+
+.ob-tab-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--btn);
+  color: var(--accent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ob-tab-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.ob-tab-item strong {
+  font-size: 0.9rem;
+  display: block;
+}
+
+.ob-tab-item p {
+  margin: 1px 0 0;
+  font-size: 0.78rem;
+  color: var(--text-dim);
 }
 
 /* ==================== Avatar / perfil ==================== */

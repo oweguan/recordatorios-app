@@ -48,6 +48,9 @@ const themeToggle = document.getElementById('themeToggle');
 document.querySelectorAll('.nav-item').forEach((btn) => {
   btn.querySelector('.nav-icon').innerHTML = NAV_ICONS[btn.dataset.page];
 });
+document.querySelectorAll('.ob-tab-icon[data-icon]').forEach((el) => {
+  el.innerHTML = NAV_ICONS[el.dataset.icon] || '';
+});
 
 settingsToggle.innerHTML = ICONS.settings;
 settingsBack.innerHTML = ICONS.arrowLeft;
@@ -62,7 +65,7 @@ document.querySelector('[data-action="rename-current-project"]').innerHTML = ICO
 document.querySelector('[data-action="delete-current-project"]').innerHTML = ICONS.trash;
 document.getElementById('calPrev').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
 document.getElementById('calNext').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
-document.getElementById('calWeekdays').innerHTML = ['L', 'M', 'X', 'J', 'V', 'S', 'D'].map((d) => `<span>${d}</span>`).join('');
+renderWeekdayHeader();
 
 function escapeHtml(str) {
   const div = document.createElement('div');
@@ -110,6 +113,7 @@ function applyProfileToUI() {
     settingsInitial.hidden = false;
     settingsInitial.textContent = initial;
   }
+  document.getElementById('removePhotoBtn').hidden = !photo;
 }
 
 function readImageAsDataUrl(file) {
@@ -138,6 +142,12 @@ document.getElementById('settingsProfileName').addEventListener('click', () => {
   const next = prompt('Tu nombre', current);
   if (next === null) return;
   localStorage.setItem('profileName', next.trim());
+  applyProfileToUI();
+});
+
+document.getElementById('removePhotoBtn').addEventListener('click', () => {
+  if (!confirm('¿Quitar tu foto de perfil?')) return;
+  localStorage.removeItem('profilePhoto');
   applyProfileToUI();
 });
 
@@ -263,7 +273,7 @@ document.getElementById('projectQuickAddForm').addEventListener('submit', (e) =>
 
 // ==================== Onboarding ====================
 
-const OB_STEPS = ['welcome', 'personalize', 'features'];
+const OB_STEPS = ['welcome', 'personalize', 'organize', 'features'];
 
 function showObStep(step) {
   document.querySelectorAll('.ob-step').forEach((el) => {
@@ -276,7 +286,7 @@ function startApp() {
   onboardingEl.hidden = true;
   appShellEl.hidden = false;
   applyProfileToUI();
-  switchPage('inbox');
+  switchPage(getHomeView());
   refreshData();
 }
 
@@ -340,6 +350,74 @@ themeToggle.addEventListener('click', () => {
   const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
   applyTheme(next);
   localStorage.setItem('theme', next);
+});
+
+// ==================== Color de acento (4 temas, como el free de Todoist) ====================
+
+const ACCENT_THEMES = [
+  { id: 'red', color: '#db4c3f', hover: '#c8402f' },
+  { id: 'orange', color: '#e58b39', hover: '#d17a2c' },
+  { id: 'blue', color: '#4a90e2', hover: '#3a7bc8' },
+  { id: 'green', color: '#2a9d8f', hover: '#238276' },
+];
+
+function applyAccent(id) {
+  const theme = ACCENT_THEMES.find((t) => t.id === id) || ACCENT_THEMES[0];
+  document.documentElement.style.setProperty('--accent', theme.color);
+  document.documentElement.style.setProperty('--accent-hover', theme.hover);
+}
+
+function renderAccentSwatches() {
+  const el = document.getElementById('accentSwatches');
+  const current = localStorage.getItem('accentColor') || 'red';
+  el.innerHTML = ACCENT_THEMES.map(
+    (t) =>
+      `<button type="button" class="accent-swatch${t.id === current ? ' active' : ''}" data-accent="${t.id}" style="--sw:${t.color}" aria-label="Color ${t.id}"></button>`
+  ).join('');
+}
+
+document.getElementById('accentSwatches').addEventListener('click', (e) => {
+  const btn = e.target.closest('.accent-swatch');
+  if (!btn) return;
+  localStorage.setItem('accentColor', btn.dataset.accent);
+  applyAccent(btn.dataset.accent);
+  renderAccentSwatches();
+});
+
+applyAccent(localStorage.getItem('accentColor') || 'red');
+renderAccentSwatches();
+
+// ==================== Preferencias: pantalla de inicio y primer dia de la semana ====================
+
+const HOME_VIEW_OPTIONS = ['inbox', 'today', 'upcoming', 'projects', 'explore'];
+
+function getHomeView() {
+  const saved = localStorage.getItem('homeView');
+  return HOME_VIEW_OPTIONS.includes(saved) ? saved : 'inbox';
+}
+
+function getWeekStart() {
+  return localStorage.getItem('weekStart') === 'sunday' ? 'sunday' : 'monday';
+}
+
+function renderWeekdayHeader() {
+  const labels =
+    getWeekStart() === 'sunday' ? ['D', 'L', 'M', 'X', 'J', 'V', 'S'] : ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
+  document.getElementById('calWeekdays').innerHTML = labels.map((d) => `<span>${d}</span>`).join('');
+}
+
+const homeViewSelect = document.getElementById('homeViewSelect');
+homeViewSelect.value = getHomeView();
+homeViewSelect.addEventListener('change', (e) => {
+  localStorage.setItem('homeView', e.target.value);
+});
+
+const weekStartSelect = document.getElementById('weekStartSelect');
+weekStartSelect.value = getWeekStart();
+weekStartSelect.addEventListener('change', (e) => {
+  localStorage.setItem('weekStart', e.target.value);
+  renderWeekdayHeader();
+  renderCalendar();
 });
 
 // ==================== Settings <-> App shell ====================
@@ -1204,7 +1282,7 @@ function renderCalendar() {
   });
 
   const firstOfMonth = new Date(year, month, 1);
-  const startWeekday = (firstOfMonth.getDay() + 6) % 7;
+  const startWeekday = getWeekStart() === 'sunday' ? firstOfMonth.getDay() : (firstOfMonth.getDay() + 6) % 7;
   const daysInMonth = new Date(year, month + 1, 0).getDate();
   const daysInPrevMonth = new Date(year, month, 0).getDate();
 
@@ -1413,6 +1491,6 @@ if ('serviceWorker' in navigator) {
 
 if (localStorage.getItem('onboarded') === 'true') {
   applyProfileToUI();
-  switchPage('inbox');
+  switchPage(getHomeView());
   refreshData();
 }

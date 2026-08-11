@@ -37,6 +37,36 @@
       <button class="ob-primary" data-action="ob-next">Siguiente</button>
     </section>
 
+    <section class="ob-step" data-step="organize" hidden>
+      <h1>Así se organiza tu app</h1>
+      <p class="ob-text">Cinco espacios, cada uno para un momento distinto del día.</p>
+
+      <div class="ob-tabs-overview">
+        <div class="ob-tab-item">
+          <span class="ob-tab-icon" data-icon="inbox"></span>
+          <div><strong>Bandeja</strong><p>Todo lo que apuntas sin fecha, para organizar cuando quieras</p></div>
+        </div>
+        <div class="ob-tab-item">
+          <span class="ob-tab-icon" data-icon="today"></span>
+          <div><strong>Hoy</strong><p>Lo que tienes que hacer hoy, en una lista simple</p></div>
+        </div>
+        <div class="ob-tab-item">
+          <span class="ob-tab-icon" data-icon="upcoming"></span>
+          <div><strong>Próximo</strong><p>Calendario para planificar las próximas semanas</p></div>
+        </div>
+        <div class="ob-tab-item">
+          <span class="ob-tab-icon" data-icon="projects"></span>
+          <div><strong>Proyectos</strong><p>Agrupa tareas por área: trabajo, casa, lo que sea</p></div>
+        </div>
+        <div class="ob-tab-item">
+          <span class="ob-tab-icon" data-icon="explore"></span>
+          <div><strong>Explorar</strong><p>Busca y filtra entre todas tus tareas</p></div>
+        </div>
+      </div>
+
+      <button class="ob-primary" data-action="ob-next">Siguiente</button>
+    </section>
+
     <section class="ob-step" data-step="features" hidden>
       <h1>Activa lo que quieras usar</h1>
       <p class="ob-text">Puedes cambiarlo cuando quieras desde Ajustes.</p>
@@ -224,6 +254,28 @@
           <span id="settingsAvatarInitial"></span>
         </button>
       </div>
+      <button id="removePhotoBtn" class="settings-link-btn" hidden>Quitar foto</button>
+    </section>
+
+    <section class="settings-section">
+      <h2>Preferencias</h2>
+      <div class="settings-row">
+        <span>Pantalla de inicio</span>
+        <select id="homeViewSelect" class="settings-select">
+          <option value="inbox">Bandeja</option>
+          <option value="today">Hoy</option>
+          <option value="upcoming">Próximo</option>
+          <option value="projects">Proyectos</option>
+          <option value="explore">Explorar</option>
+        </select>
+      </div>
+      <div class="settings-row">
+        <span>Primer día de la semana</span>
+        <select id="weekStartSelect" class="settings-select">
+          <option value="monday">Lunes</option>
+          <option value="sunday">Domingo</option>
+        </select>
+      </div>
     </section>
 
     <section class="settings-section">
@@ -231,6 +283,10 @@
       <div class="settings-row">
         <span>Tema</span>
         <button id="themeToggle" class="icon-button" aria-label="Cambiar tema" title="Cambiar tema"></button>
+      </div>
+      <div class="settings-row">
+        <span>Color</span>
+        <div id="accentSwatches" class="accent-swatches"></div>
       </div>
     </section>
 
@@ -267,6 +323,11 @@
         </div>
         <div id="backupsList"></div>
       </div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Acerca de</h2>
+      <p class="settings-hint">Mis Recordatorios — tu agenda de voz personal. Sin coste, sin anuncios, hecha a tu medida.</p>
     </section>
   </div>
 
