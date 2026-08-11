@@ -389,7 +389,19 @@ body {
 }
 
 .reminder-row.dragging {
-  opacity: 0.5;
+  position: relative;
+  z-index: 30;
+  background: var(--card);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.3);
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.drop-indicator {
+  height: 3px;
+  margin: 5px 2px;
+  border-radius: 2px;
+  background: var(--accent);
 }
 
 .check-circle {

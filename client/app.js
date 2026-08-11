@@ -1156,6 +1156,9 @@ async function refreshSubtasksInPlace(id, item) {
 // Un unico controlador basado en pointer events (funciona igual con raton y con tactil) cubre
 // dos gestos: reordenar manualmente dentro de una lista (Bandeja/Proyecto), y arrastrar una
 // tarea del dia seleccionado en Proximo sobre el calendario para reprogramarla.
+//
+// La fila arrastrada se "levanta" (sombra + se mueve con el puntero via transform) desde el
+// primer instante, y en modo reordenar aparece una linea que marca donde quedaria al soltar.
 
 let dragInfo = null;
 
@@ -1168,16 +1171,29 @@ function findDragContext(row) {
 
 function onDragMove(e) {
   if (!dragInfo) return;
-  const { row, type } = dragInfo;
+  const { row, type, container, indicator, startX, startY } = dragInfo;
+  const deltaY = e.clientY - startY;
 
   if (type === 'reorder') {
-    const target = document.elementFromPoint(e.clientX, e.clientY)?.closest('.reminder-row');
-    if (target && target !== row && target.parentElement === row.parentElement) {
-      const rect = target.getBoundingClientRect();
-      const before = e.clientY < rect.top + rect.height / 2;
-      target.parentElement.insertBefore(row, before ? target : target.nextSibling);
+    row.style.transform = `translateY(${deltaY}px)`;
+
+    let insertBeforeEl = null;
+    for (const sib of container.querySelectorAll('.reminder-row')) {
+      if (sib === row) continue;
+      const rect = sib.getBoundingClientRect();
+      if (e.clientY < rect.top + rect.height / 2) {
+        insertBeforeEl = sib;
+        break;
+      }
+    }
+    if (insertBeforeEl) {
+      container.insertBefore(indicator, insertBeforeEl);
+    } else {
+      container.appendChild(indicator);
     }
   } else if (type === 'calendar') {
+    const deltaX = e.clientX - startX;
+    row.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
     document.querySelectorAll('.cal-day.drop-target').forEach((el) => el.classList.remove('drop-target'));
     const dayCell = document.elementFromPoint(e.clientX, e.clientY)?.closest('.cal-day');
     if (dayCell) dayCell.classList.add('drop-target');
@@ -1186,7 +1202,7 @@ function onDragMove(e) {
 
 async function onDragEnd(e) {
   if (!dragInfo) return;
-  const { row, type, container, id, pointerId } = dragInfo;
+  const { row, type, container, id, pointerId, indicator } = dragInfo;
   try {
     row.releasePointerCapture(pointerId);
   } catch {
@@ -1196,9 +1212,14 @@ async function onDragEnd(e) {
   row.removeEventListener('pointerup', onDragEnd);
   row.removeEventListener('pointercancel', onDragEnd);
   row.classList.remove('dragging');
+  row.style.transform = '';
   dragInfo = null;
 
   if (type === 'reorder') {
+    if (indicator.parentElement) {
+      indicator.parentElement.insertBefore(row, indicator);
+      indicator.remove();
+    }
     const ids = [...container.querySelectorAll('.reminder-row')].map((el) => Number(el.dataset.id));
     await fetch('/api/reminders/reorder', {
       method: 'POST',
@@ -1234,12 +1255,23 @@ document.body.addEventListener('pointerdown', (e) => {
   if (!ctx) return;
 
   e.preventDefault();
+
+  let indicator = null;
+  if (ctx.type === 'reorder') {
+    indicator = document.createElement('div');
+    indicator.className = 'drop-indicator';
+    row.after(indicator);
+  }
+
   dragInfo = {
     id: Number(row.dataset.id),
     row,
     type: ctx.type,
     container: ctx.container,
     pointerId: e.pointerId,
+    startX: e.clientX,
+    startY: e.clientY,
+    indicator,
   };
   row.classList.add('dragging');
   row.setPointerCapture(e.pointerId);
