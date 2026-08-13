@@ -158,16 +158,48 @@
 
     <!-- Explorar -->
     <section class="app-page" data-page="explore" hidden>
-      <div class="quick-add">
-        <input id="searchInput" type="text" placeholder="Buscar recordatorios..." autocomplete="off" />
+      <div id="exploreMenuView">
+        <div class="explore-menu-item" data-action="open-explore-search">
+          <span class="explore-menu-icon" data-icon="search"></span>
+          <span>Buscar</span>
+        </div>
+        <div class="explore-menu-item" data-action="open-filters-view">
+          <span class="explore-menu-icon" data-icon="filters"></span>
+          <span>Filtros y Etiquetas</span>
+        </div>
+
+        <div id="exploreFavoritesSection" hidden>
+          <h3 class="explore-menu-heading">Favoritos</h3>
+          <div id="exploreFavoritesList"></div>
+        </div>
+
+        <div class="explore-menu-heading-row">
+          <h3 class="explore-menu-heading">Mis Proyectos</h3>
+          <button class="icon-button-sm" data-action="add-project" aria-label="Nuevo proyecto" title="Nuevo proyecto"></button>
+        </div>
+        <div id="exploreProjectsList"></div>
       </div>
-      <div class="explore-filters" id="exploreFilters">
-        <button class="filter-pill active" data-filter="all">Todos</button>
-        <button class="filter-pill" data-filter="pending">Pendientes</button>
-        <button class="filter-pill" data-filter="done">Completadas</button>
+
+      <div id="exploreSearchView" hidden>
+        <div class="project-detail-header">
+          <button class="icon-button-sm" data-action="back-to-explore-menu" aria-label="Volver" title="Volver"></button>
+          <h2>Buscar</h2>
+        </div>
+        <div class="quick-add">
+          <input id="searchInput" type="text" placeholder="Buscar recordatorios..." autocomplete="off" />
+        </div>
+        <div id="activeFilterBanner" class="active-filter-banner" hidden>
+          <span id="activeFilterName"></span>
+          <button type="button" data-action="clear-advanced-filter" aria-label="Quitar filtro" title="Quitar filtro">✕</button>
+        </div>
+        <div class="explore-filters" id="exploreFilters">
+          <button class="filter-pill active" data-filter="all">Todos</button>
+          <button class="filter-pill" data-filter="pending">Pendientes</button>
+          <button class="filter-pill" data-filter="done">Completadas</button>
+        </div>
+        <div class="explore-filters explore-filters-projects" id="exploreProjectFilters"></div>
+        <div id="exploreList" class="reminders"></div>
       </div>
-      <div class="explore-filters explore-filters-projects" id="exploreProjectFilters"></div>
-      <div id="exploreList" class="reminders"></div>
     </section>
 
     <!-- Proyectos -->
@@ -187,6 +219,8 @@
           <button class="icon-button-sm" data-action="back-to-projects" aria-label="Volver" title="Volver"></button>
           <h2 id="projectDetailName"></h2>
           <div class="header-actions-inline">
+            <button class="icon-button-sm" data-action="toggle-favorite-project" aria-label="Fijar como favorito" title="Fijar como favorito"></button>
+            <button class="icon-button-sm" data-action="add-section" aria-label="Añadir sección" title="Añadir sección"></button>
             <button class="icon-button-sm" data-action="rename-current-project" aria-label="Renombrar" title="Renombrar"></button>
             <button class="icon-button-sm" data-action="delete-current-project" aria-label="Eliminar" title="Eliminar"></button>
           </div>
@@ -238,6 +272,84 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- ---------- Modal de añadir sección ---------- -->
+  <div id="addSectionModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <h3>Añadir sección</h3>
+      <form id="addSectionForm">
+        <input id="addSectionInput" type="text" placeholder="Nombre de la sección" autocomplete="off" />
+        <div class="modal-actions">
+          <button type="button" data-action="close-add-section">Cancelar</button>
+          <button type="submit" class="ob-primary">Añadir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ---------- Filtros y Etiquetas ---------- -->
+  <div id="filtersView" class="settings-view" hidden>
+    <header class="app-header">
+      <button id="filtersBack" class="icon-button" aria-label="Volver" title="Volver"></button>
+      <h1>Filtros y Etiquetas</h1>
+    </header>
+
+    <section class="settings-section">
+      <div class="explore-menu-heading-row">
+        <h2>Filtros guardados</h2>
+        <button id="addFilterBtn" class="icon-button-sm" aria-label="Nuevo filtro" title="Nuevo filtro"></button>
+      </div>
+      <div id="savedFiltersList"></div>
+    </section>
+
+    <section class="settings-section">
+      <h2>Etiquetas</h2>
+      <div id="labelsList"></div>
+    </section>
+  </div>
+
+  <!-- ---------- Nuevo filtro ---------- -->
+  <div id="newFilterModal" class="modal-overlay" hidden>
+    <div class="modal-box">
+      <h3>Nuevo filtro</h3>
+      <form id="newFilterForm">
+        <input id="newFilterName" type="text" placeholder="Nombre del filtro" autocomplete="off" />
+        <div class="filter-form-group">
+          <span class="filter-form-label">Prioridad</span>
+          <div class="edit-priority-picker" id="newFilterPriority">
+            <button type="button" class="priority-pick p1" data-priority="1">P1</button>
+            <button type="button" class="priority-pick p2" data-priority="2">P2</button>
+            <button type="button" class="priority-pick p3" data-priority="3">P3</button>
+            <button type="button" class="priority-pick p4" data-priority="4">P4</button>
+            <button type="button" class="priority-pick p0 active" data-priority="0">Cualquiera</button>
+          </div>
+        </div>
+        <div class="filter-form-group">
+          <span class="filter-form-label">Etiqueta</span>
+          <select id="newFilterLabel" class="settings-select">
+            <option value="">Cualquiera</option>
+          </select>
+        </div>
+        <div class="filter-form-group">
+          <span class="filter-form-label">Estado</span>
+          <select id="newFilterStatus" class="settings-select">
+            <option value="pending">Pendientes</option>
+            <option value="overdue">Vencidas</option>
+            <option value="done">Completadas</option>
+          </select>
+        </div>
+        <div class="modal-actions">
+          <button type="button" data-action="close-new-filter">Cancelar</button>
+          <button type="submit" class="ob-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ---------- Hoja de detalle de tarea ---------- -->
+  <div id="taskSheetOverlay" class="sheet-overlay" hidden>
+    <div class="sheet-box" id="taskSheetBox"></div>
   </div>
 
   <!-- ---------- Ajustes ---------- -->

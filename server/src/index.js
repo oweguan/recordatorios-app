@@ -26,6 +26,18 @@ import {
   getSubtaskById,
   updateSubtask,
   deleteSubtask,
+  listSectionsByProject,
+  listSections,
+  getSectionById,
+  createSection,
+  updateSection,
+  reorderSections,
+  deleteSection,
+  listFilters,
+  getFilterById,
+  createFilter,
+  updateFilter,
+  deleteFilter,
 } from './db/index.js';
 import { parseReminderText, extractPriority, extractLabels, extractProject } from './parser.js';
 import { parseWithLLM } from './llmParser.js';
@@ -132,6 +144,7 @@ app.post('/api/reminders', async (req, res) => {
     priority,
     labels,
     projectId,
+    sectionId: req.body.sectionId ? Number(req.body.sectionId) : null,
   });
 
   if (dueAt) {
@@ -183,6 +196,12 @@ app.patch('/api/reminders/:id', async (req, res) => {
     projectId = req.body.projectId === null ? null : Number(req.body.projectId);
   }
 
+  // Si cambia de proyecto sin especificar seccion, la seccion anterior (de otro proyecto) deja de aplicar.
+  let sectionId = projectId === existing.project_id ? existing.section_id ?? null : null;
+  if (Object.prototype.hasOwnProperty.call(req.body, 'sectionId')) {
+    sectionId = req.body.sectionId === null ? null : Number(req.body.sectionId);
+  }
+
   let description = existing.description ?? null;
   if (Object.prototype.hasOwnProperty.call(req.body, 'description')) {
     description = typeof req.body.description === 'string' ? req.body.description.trim() || null : null;
@@ -206,7 +225,7 @@ app.patch('/api/reminders/:id', async (req, res) => {
     }
   }
 
-  const updated = await updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description });
+  const updated = await updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description, sectionId });
   syncUpdateToCalendar(updated);
   res.json(updated);
 });
@@ -239,6 +258,7 @@ app.post('/api/reminders/:id/postpone', async (req, res) => {
     labels: existing.labels,
     projectId: existing.project_id,
     description: existing.description,
+    sectionId: existing.section_id,
   });
   syncUpdateToCalendar(updated);
   res.json(updated);
@@ -313,7 +333,10 @@ app.patch('/api/projects/:id', async (req, res) => {
 
   const name = typeof req.body.name === 'string' && req.body.name.trim() ? req.body.name.trim() : existing.name;
   const color = typeof req.body.color === 'string' && req.body.color.trim() ? req.body.color.trim() : existing.color;
-  res.json(await updateProject(id, { name, color }));
+  const isFavorite = Object.prototype.hasOwnProperty.call(req.body, 'isFavorite')
+    ? Boolean(req.body.isFavorite)
+    : existing.is_favorite;
+  res.json(await updateProject(id, { name, color, isFavorite }));
 });
 
 app.delete('/api/projects/:id', async (req, res) => {
@@ -347,6 +370,76 @@ app.delete('/api/subtasks/:id', async (req, res) => {
   const existing = await getSubtaskById(Number(req.params.id));
   if (!existing) return res.status(404).json({ error: 'Subtarea no encontrada' });
   await deleteSubtask(existing.id);
+  res.status(204).end();
+});
+
+app.get('/api/sections', async (req, res) => {
+  if (req.query.projectId) {
+    return res.json(await listSectionsByProject(Number(req.query.projectId)));
+  }
+  res.json(await listSections());
+});
+
+app.post('/api/sections', async (req, res) => {
+  const projectId = Number(req.body.projectId);
+  const name = (req.body.name || '').trim();
+  if (!projectId || !name) return res.status(400).json({ error: 'projectId y name son obligatorios' });
+  const project = await getProjectById(projectId);
+  if (!project) return res.status(404).json({ error: 'Proyecto no encontrado' });
+  res.status(201).json(await createSection(projectId, name));
+});
+
+// Reordena las secciones de un proyecto (arrastrar y soltar).
+app.post('/api/sections/reorder', async (req, res) => {
+  const { ids } = req.body;
+  if (!Array.isArray(ids) || ids.some((id) => !Number.isInteger(id))) {
+    return res.status(400).json({ error: 'ids debe ser un array de numeros enteros' });
+  }
+  await reorderSections(ids);
+  res.status(204).end();
+});
+
+app.patch('/api/sections/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const existing = await getSectionById(id);
+  if (!existing) return res.status(404).json({ error: 'Sección no encontrada' });
+  const name = typeof req.body.name === 'string' && req.body.name.trim() ? req.body.name.trim() : existing.name;
+  res.json(await updateSection(id, name));
+});
+
+app.delete('/api/sections/:id', async (req, res) => {
+  const existing = await getSectionById(Number(req.params.id));
+  if (!existing) return res.status(404).json({ error: 'Sección no encontrada' });
+  await deleteSection(existing.id);
+  res.status(204).end();
+});
+
+app.get('/api/filters', async (req, res) => {
+  res.json(await listFilters());
+});
+
+app.post('/api/filters', async (req, res) => {
+  const name = (req.body.name || '').trim();
+  const criteria = req.body.criteria;
+  if (!name || typeof criteria !== 'object' || criteria === null) {
+    return res.status(400).json({ error: 'name y criteria son obligatorios' });
+  }
+  res.status(201).json(await createFilter(name, criteria));
+});
+
+app.patch('/api/filters/:id', async (req, res) => {
+  const id = Number(req.params.id);
+  const existing = await getFilterById(id);
+  if (!existing) return res.status(404).json({ error: 'Filtro no encontrado' });
+  const name = typeof req.body.name === 'string' && req.body.name.trim() ? req.body.name.trim() : existing.name;
+  const criteria = typeof req.body.criteria === 'object' && req.body.criteria !== null ? req.body.criteria : existing.criteria;
+  res.json(await updateFilter(id, name, criteria));
+});
+
+app.delete('/api/filters/:id', async (req, res) => {
+  const existing = await getFilterById(Number(req.params.id));
+  if (!existing) return res.status(404).json({ error: 'Filtro no encontrado' });
+  await deleteFilter(existing.id);
   res.status(204).end();
 });
 

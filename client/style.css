@@ -1508,7 +1508,9 @@ body {
   cursor: pointer;
 }
 
-.modal-actions button[data-action="close-quick-add"] {
+.modal-actions button[data-action="close-quick-add"],
+.modal-actions button[data-action="close-add-section"],
+.modal-actions button[data-action="close-new-filter"] {
   background: var(--btn);
   color: var(--text);
 }
@@ -1584,4 +1586,257 @@ body {
   line-height: 1.55;
   max-width: 300px;
   margin: 0 auto;
+}
+
+/* ==================== Favoritos ==================== */
+
+.icon-button-sm.active {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
+/* ==================== Secciones dentro de un proyecto ==================== */
+
+.task-group {
+  width: 100%;
+  max-width: 460px;
+}
+
+.section-block {
+  width: 100%;
+  max-width: 460px;
+  margin-top: 18px;
+}
+
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.section-toggle {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  padding: 6px 0;
+  font-family: inherit;
+  text-align: left;
+  min-width: 0;
+}
+
+.section-chevron {
+  flex-shrink: 0;
+  display: flex;
+  transition: transform 0.15s;
+}
+
+.section-chevron svg {
+  width: 14px;
+  height: 14px;
+  color: var(--text-dim);
+}
+
+.section-chevron.collapsed {
+  transform: rotate(-90deg);
+}
+
+.section-name {
+  font-weight: 700;
+  font-size: 0.95rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.section-count {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* ==================== Explorar: menu tipo Todoist ==================== */
+
+#exploreMenuView,
+#exploreSearchView {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.explore-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 460px;
+  padding: 12px 4px;
+  cursor: pointer;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.95rem;
+}
+
+.explore-menu-icon {
+  flex-shrink: 0;
+  display: flex;
+  color: var(--text-dim);
+}
+
+.explore-menu-icon svg {
+  width: 19px;
+  height: 19px;
+}
+
+.explore-menu-heading {
+  width: 100%;
+  max-width: 460px;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  font-weight: 600;
+  margin: 20px 0 8px;
+}
+
+.explore-menu-heading-row {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 20px;
+}
+
+.explore-menu-heading-row .explore-menu-heading {
+  margin: 0;
+}
+
+#exploreFavoritesList,
+#exploreProjectsList {
+  width: 100%;
+  max-width: 460px;
+}
+
+.active-filter-banner {
+  width: 100%;
+  max-width: 460px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--card);
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin: 12px 0 16px;
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.active-filter-banner button {
+  border: none;
+  background: none;
+  color: var(--text-dim);
+  cursor: pointer;
+  font-size: 0.9rem;
+  padding: 0;
+}
+
+/* ==================== Filtros y Etiquetas ==================== */
+
+.settings-row-clickable {
+  width: 100%;
+  border: none;
+  background: none;
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  padding: 8px 0;
+  text-align: left;
+}
+
+.settings-row-clickable:hover {
+  color: var(--accent);
+}
+
+.filter-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-form-label {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+#newFilterPriority {
+  flex-wrap: wrap;
+}
+
+.priority-pick.p0 svg { display: none; }
+
+/* ==================== Hoja de detalle de tarea (bottom sheet) ==================== */
+
+.sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  z-index: 110;
+}
+
+.sheet-box {
+  width: 100%;
+  max-width: 460px;
+  max-height: 88vh;
+  overflow-y: auto;
+  background: var(--card);
+  border-radius: 18px 18px 0 0;
+  padding: 16px 18px 24px;
+  animation: sheet-slide-up 0.2s ease-out;
+}
+
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.sheet-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sheet-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-dim);
+  font-size: 0.82rem;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sheet-breadcrumb svg {
+  width: 14px;
+  height: 14px;
+  flex-shrink: 0;
+}
+
+.sheet-box .reminder-edit-row {
+  padding: 0;
+  border-bottom: none;
 }

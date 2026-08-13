@@ -97,6 +97,7 @@ export async function handleCallbackQuery(query) {
       labels: reminder.labels,
       projectId: reminder.project_id,
       description: reminder.description,
+      sectionId: reminder.section_id,
     });
     syncUpdateToCalendar(updated);
     await bot.answerCallbackQuery(query.id, { text: `Pospuesto ${minutes} min` });

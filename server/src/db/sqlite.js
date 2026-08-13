@@ -95,6 +95,38 @@ db.exec(`
   )
 `);
 
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sections (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    project_id INTEGER NOT NULL,
+    name TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+db.exec(`
+  CREATE TABLE IF NOT EXISTS filters (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    name TEXT NOT NULL,
+    criteria TEXT NOT NULL,
+    sort_order INTEGER NOT NULL DEFAULT 0,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+  )
+`);
+
+try {
+  db.exec('ALTER TABLE reminders ADD COLUMN section_id INTEGER');
+} catch {
+  // ya existe
+}
+
+try {
+  db.exec('ALTER TABLE projects ADD COLUMN is_favorite INTEGER NOT NULL DEFAULT 0');
+} catch {
+  // ya existe
+}
+
 try {
   db.exec('ALTER TABLE reminders ADD COLUMN project_id INTEGER');
 } catch {
@@ -171,17 +203,22 @@ export async function init() {}
 
 // --- Proyectos ---
 
+function parseProjectRow(row) {
+  if (!row) return row;
+  return { ...row, is_favorite: Boolean(row.is_favorite) };
+}
+
 export async function listProjects() {
-  return db.prepare('SELECT * FROM projects ORDER BY id ASC').all();
+  return db.prepare('SELECT * FROM projects ORDER BY id ASC').all().map(parseProjectRow);
 }
 
 export async function getProjectById(id) {
-  return db.prepare('SELECT * FROM projects WHERE id = ?').get(id);
+  return parseProjectRow(db.prepare('SELECT * FROM projects WHERE id = ?').get(id));
 }
 
 export async function findOrCreateProjectByName(name) {
   const existing = db.prepare('SELECT * FROM projects WHERE LOWER(name) = LOWER(?)').get(name);
-  if (existing) return existing;
+  if (existing) return parseProjectRow(existing);
   const count = db.prepare('SELECT COUNT(*) as c FROM projects').get().c;
   const result = db.prepare('INSERT INTO projects (name, color) VALUES (?, ?)').run(name, nextProjectColor(count));
   return getProjectById(Number(result.lastInsertRowid));
@@ -189,7 +226,7 @@ export async function findOrCreateProjectByName(name) {
 
 export async function createProject({ name, color }) {
   const existing = db.prepare('SELECT * FROM projects WHERE LOWER(name) = LOWER(?)').get(name);
-  if (existing) return existing;
+  if (existing) return parseProjectRow(existing);
   const count = db.prepare('SELECT COUNT(*) as c FROM projects').get().c;
   const result = db
     .prepare('INSERT INTO projects (name, color) VALUES (?, ?)')
@@ -197,13 +234,19 @@ export async function createProject({ name, color }) {
   return getProjectById(Number(result.lastInsertRowid));
 }
 
-export async function updateProject(id, { name, color }) {
-  db.prepare('UPDATE projects SET name = ?, color = ? WHERE id = ?').run(name, color, id);
+export async function updateProject(id, { name, color, isFavorite }) {
+  db.prepare('UPDATE projects SET name = ?, color = ?, is_favorite = ? WHERE id = ?').run(
+    name,
+    color,
+    isFavorite ? 1 : 0,
+    id
+  );
   return getProjectById(id);
 }
 
 export async function deleteProject(id) {
-  db.prepare('UPDATE reminders SET project_id = NULL WHERE project_id = ?').run(id);
+  db.prepare('UPDATE reminders SET project_id = NULL, section_id = NULL WHERE project_id = ?').run(id);
+  db.prepare('DELETE FROM sections WHERE project_id = ?').run(id);
   db.prepare('DELETE FROM projects WHERE id = ?').run(id);
 }
 
@@ -230,6 +273,75 @@ export async function updateSubtask(id, { text, done }) {
 
 export async function deleteSubtask(id) {
   db.prepare('DELETE FROM subtasks WHERE id = ?').run(id);
+}
+
+// --- Secciones ---
+
+export async function listSectionsByProject(projectId) {
+  return db.prepare('SELECT * FROM sections WHERE project_id = ? ORDER BY sort_order ASC, id ASC').all(projectId);
+}
+
+export async function listSections() {
+  return db.prepare('SELECT * FROM sections ORDER BY project_id ASC, sort_order ASC, id ASC').all();
+}
+
+export async function getSectionById(id) {
+  return db.prepare('SELECT * FROM sections WHERE id = ?').get(id);
+}
+
+export async function createSection(projectId, name) {
+  const count = db.prepare('SELECT COUNT(*) as c FROM sections WHERE project_id = ?').get(projectId).c;
+  const result = db
+    .prepare('INSERT INTO sections (project_id, name, sort_order) VALUES (?, ?, ?)')
+    .run(projectId, name, count);
+  return getSectionById(Number(result.lastInsertRowid));
+}
+
+export async function updateSection(id, name) {
+  db.prepare('UPDATE sections SET name = ? WHERE id = ?').run(name, id);
+  return getSectionById(id);
+}
+
+export async function reorderSections(ids) {
+  const stmt = db.prepare('UPDATE sections SET sort_order = ? WHERE id = ?');
+  ids.forEach((id, index) => stmt.run(index, id));
+}
+
+export async function deleteSection(id) {
+  db.prepare('UPDATE reminders SET section_id = NULL WHERE section_id = ?').run(id);
+  db.prepare('DELETE FROM sections WHERE id = ?').run(id);
+}
+
+// --- Filtros guardados ---
+
+function parseFilterRow(row) {
+  if (!row) return row;
+  return { ...row, criteria: JSON.parse(row.criteria) };
+}
+
+export async function listFilters() {
+  return db.prepare('SELECT * FROM filters ORDER BY sort_order ASC, id ASC').all().map(parseFilterRow);
+}
+
+export async function getFilterById(id) {
+  return parseFilterRow(db.prepare('SELECT * FROM filters WHERE id = ?').get(id));
+}
+
+export async function createFilter(name, criteria) {
+  const count = db.prepare('SELECT COUNT(*) as c FROM filters').get().c;
+  const result = db
+    .prepare('INSERT INTO filters (name, criteria, sort_order) VALUES (?, ?, ?)')
+    .run(name, JSON.stringify(criteria), count);
+  return getFilterById(Number(result.lastInsertRowid));
+}
+
+export async function updateFilter(id, name, criteria) {
+  db.prepare('UPDATE filters SET name = ?, criteria = ? WHERE id = ?').run(name, JSON.stringify(criteria), id);
+  return getFilterById(id);
+}
+
+export async function deleteFilter(id) {
+  db.prepare('DELETE FROM filters WHERE id = ?').run(id);
 }
 
 export async function saveGoogleAuth({ refreshToken }) {
@@ -282,11 +394,12 @@ export async function createReminder({
   labels,
   projectId,
   description,
+  sectionId,
 }) {
   const nextSortOrder = (db.prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM reminders').get()).n;
   const stmt = db.prepare(`
-    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description, sort_order)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description, sort_order, section_id)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `);
   const result = stmt.run(
     originalText,
@@ -299,7 +412,8 @@ export async function createReminder({
     JSON.stringify(labels ?? []),
     projectId ?? null,
     description ?? null,
-    nextSortOrder
+    nextSortOrder,
+    sectionId ?? null
   );
   return getReminderById(Number(result.lastInsertRowid));
 }
@@ -339,10 +453,10 @@ export async function setReminderStatus(id, status) {
   return getReminderById(id);
 }
 
-export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description }) {
+export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description, sectionId }) {
   db.prepare(`
     UPDATE reminders
-    SET task = ?, due_at = ?, notify_at = ?, status = 'pending', priority = ?, labels = ?, project_id = ?, description = ?
+    SET task = ?, due_at = ?, notify_at = ?, status = 'pending', priority = ?, labels = ?, project_id = ?, description = ?, section_id = ?
     WHERE id = ?
   `).run(
     task,
@@ -352,6 +466,7 @@ export async function updateReminder(id, { task, dueAt, notifyAt, priority, labe
     JSON.stringify(labels ?? []),
     projectId ?? null,
     description ?? null,
+    sectionId ?? null,
     id
   );
   return getReminderById(id);

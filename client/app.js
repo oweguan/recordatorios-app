@@ -22,6 +22,12 @@ const ICONS = {
   checklist: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 8 5 10 9 6"/><line x1="12" y1="8" x2="21" y2="8"/><polyline points="3 17 5 19 9 15"/><line x1="12" y1="17" x2="21" y2="17"/></svg>',
   folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z"/></svg>',
   grip: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><circle cx="9" cy="5" r="1.5"/><circle cx="15" cy="5" r="1.5"/><circle cx="9" cy="12" r="1.5"/><circle cx="15" cy="12" r="1.5"/><circle cx="9" cy="19" r="1.5"/><circle cx="15" cy="19" r="1.5"/></svg>',
+  star: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  starFilled: '<svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>',
+  filters: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="4" y1="12" x2="14" y2="12"/><line x1="4" y1="18" x2="10" y2="18"/></svg>',
+  close: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>',
+  chevronDown: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>',
+  plus: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>',
 };
 
 const PRIORITY_COLORS = { 1: '#e63946', 2: '#f4a52a', 3: '#4a90e2', 4: 'transparent' };
@@ -57,14 +63,19 @@ settingsToggle.innerHTML = ICONS.settings;
 settingsBack.innerHTML = ICONS.arrowLeft;
 document.getElementById('readTodayBtn').innerHTML = ICONS.volume;
 document.getElementById('pushToggle').innerHTML = ICONS.bell;
-document.querySelectorAll('[data-action="open-quick-add"], [data-action="add-project"], #fabAdd').forEach((btn) => {
+document.querySelectorAll('[data-action="open-quick-add"], [data-action="add-project"], [data-action="add-section"], #fabAdd, #addFilterBtn').forEach((btn) => {
   btn.innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>';
 });
 document.querySelector('[data-action="back-to-projects"]').innerHTML = ICONS.arrowLeft;
+document.querySelector('[data-action="back-to-explore-menu"]').innerHTML = ICONS.arrowLeft;
 document.querySelector('[data-action="rename-current-project"]').innerHTML = ICONS.edit;
 document.querySelector('[data-action="delete-current-project"]').innerHTML = ICONS.trash;
 document.getElementById('calPrev').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>';
 document.getElementById('calNext').innerHTML = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>';
+document.getElementById('filtersBack').innerHTML = ICONS.arrowLeft;
+document.querySelectorAll('.explore-menu-icon[data-icon]').forEach((el) => {
+  el.innerHTML = el.dataset.icon === 'filters' ? ICONS.filters : ICONS.search;
+});
 renderWeekdayHeader();
 
 function escapeHtml(str) {
@@ -155,6 +166,16 @@ document.getElementById('removePhotoBtn').addEventListener('click', () => {
 // currentProjectId: null = vista de lista de proyectos; numero = detalle de un proyecto abierto.
 
 let currentProjectId = null;
+const collapsedSectionIds = new Set();
+
+function projectRowHtml(p) {
+  const count = allReminders.filter((r) => r.project_id === p.id && r.status !== 'done').length;
+  return `<button type="button" class="project-card" data-action="open-project" data-project-id="${p.id}">
+        <span class="project-dot" style="--pc:${p.color}"></span>
+        <span class="project-card-name">${escapeHtml(p.name)}</span>
+        <span class="project-card-count">${count}</span>
+      </button>`;
+}
 
 function renderProjectsList() {
   const el = document.getElementById('projectsList');
@@ -166,35 +187,67 @@ function renderProjectsList() {
     return;
   }
 
-  el.innerHTML = allProjects
-    .map((p) => {
-      const count = allReminders.filter((r) => r.project_id === p.id && r.status !== 'done').length;
-      return `<button type="button" class="project-card" data-action="open-project" data-project-id="${p.id}">
-        <span class="project-dot" style="--pc:${p.color}"></span>
-        <span class="project-card-name">${escapeHtml(p.name)}</span>
-        <span class="project-card-count">${count}</span>
-      </button>`;
-    })
-    .join('');
+  el.innerHTML = allProjects.map(projectRowHtml).join('');
+}
+
+function sortProjectTasks(items) {
+  return items.slice().sort((a, b) => {
+    if (!a.due_at && !b.due_at) return (a.sort_order ?? 0) - (b.sort_order ?? 0);
+    if (!a.due_at) return -1;
+    if (!b.due_at) return 1;
+    return new Date(a.due_at) - new Date(b.due_at);
+  });
+}
+
+function taskGroupHtml(items, sectionId) {
+  return `<div class="task-group" data-section-id="${sectionId ?? ''}">${sortProjectTasks(items)
+    .map((r) => renderReminderView(r))
+    .join('')}</div>`;
 }
 
 function renderProjectDetail(project) {
   document.getElementById('projectDetailName').textContent = project.name;
 
-  const items = allReminders
-    .filter((r) => r.project_id === project.id)
-    .sort((a, b) => {
-      if (!a.due_at && !b.due_at) return (a.sort_order ?? 0) - (b.sort_order ?? 0);
-      if (!a.due_at) return -1;
-      if (!b.due_at) return 1;
-      return new Date(a.due_at) - new Date(b.due_at);
-    });
+  const favBtn = document.querySelector('[data-action="toggle-favorite-project"]');
+  favBtn.innerHTML = project.is_favorite ? ICONS.starFilled : ICONS.star;
+  favBtn.classList.toggle('active', Boolean(project.is_favorite));
 
-  renderList(
-    document.getElementById('projectTaskList'),
-    items,
-    '<div class="empty">Sin tareas en este proyecto todavía</div>'
-  );
+  const projectItems = allReminders.filter((r) => r.project_id === project.id);
+  const sections = allSections.filter((s) => s.project_id === project.id);
+  const container = document.getElementById('projectTaskList');
+
+  if (projectItems.length === 0 && sections.length === 0) {
+    container.innerHTML = '<div class="empty">Sin tareas en este proyecto todavía</div>';
+    return;
+  }
+
+  const noSectionItems = projectItems.filter((r) => !r.section_id);
+  let html = taskGroupHtml(noSectionItems, null);
+
+  html += sections
+    .map((s) => {
+      const items = projectItems.filter((r) => r.section_id === s.id);
+      const collapsed = collapsedSectionIds.has(s.id);
+      return `
+        <div class="section-block">
+          <div class="section-header">
+            <button type="button" class="section-toggle" data-action="toggle-section" data-section-id="${s.id}">
+              <span class="section-chevron${collapsed ? ' collapsed' : ''}">${ICONS.chevronDown}</span>
+              <span class="section-name">${escapeHtml(s.name)}</span>
+              <span class="section-count">${items.length}</span>
+            </button>
+            <div class="header-actions-inline">
+              <button type="button" class="icon-button-sm" data-action="add-task-to-section" data-section-id="${s.id}" aria-label="Añadir tarea" title="Añadir tarea">${ICONS.plus}</button>
+              <button type="button" class="icon-button-sm" data-action="rename-section" data-section-id="${s.id}" aria-label="Renombrar sección" title="Renombrar sección">${ICONS.edit}</button>
+              <button type="button" class="icon-button-sm" data-action="delete-section" data-section-id="${s.id}" aria-label="Eliminar sección" title="Eliminar sección">${ICONS.trash}</button>
+            </div>
+          </div>
+          ${collapsed ? '' : taskGroupHtml(items, s.id)}
+        </div>`;
+    })
+    .join('');
+
+  container.innerHTML = html;
 }
 
 function renderProjectsPage() {
@@ -258,7 +311,63 @@ document.querySelector('section.app-page[data-page="projects"]').addEventListene
     await fetch(`/api/projects/${project.id}`, { method: 'DELETE' });
     currentProjectId = null;
     await refreshData();
+  } else if (action === 'toggle-favorite-project') {
+    const project = allProjects.find((p) => p.id === currentProjectId);
+    if (!project) return;
+    await fetch(`/api/projects/${project.id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ isFavorite: !project.is_favorite }),
+    });
+    await refreshData();
+  } else if (action === 'add-section') {
+    document.getElementById('addSectionInput').value = '';
+    document.getElementById('addSectionModal').hidden = false;
+    document.getElementById('addSectionInput').focus();
+  } else if (action === 'toggle-section') {
+    const sectionId = Number(button.dataset.sectionId);
+    if (collapsedSectionIds.has(sectionId)) collapsedSectionIds.delete(sectionId);
+    else collapsedSectionIds.add(sectionId);
+    renderProjectsPage();
+  } else if (action === 'add-task-to-section') {
+    const sectionId = Number(button.dataset.sectionId);
+    const text = prompt('Nueva tarea');
+    if (!text || !text.trim()) return;
+    submitReminder(text.trim(), { projectId: currentProjectId, sectionId });
+  } else if (action === 'rename-section') {
+    const sectionId = Number(button.dataset.sectionId);
+    const section = allSections.find((s) => s.id === sectionId);
+    if (!section) return;
+    const next = prompt('Nuevo nombre de la sección', section.name);
+    if (next === null || !next.trim()) return;
+    await fetch(`/api/sections/${sectionId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: next.trim() }),
+    });
+    await refreshData();
+  } else if (action === 'delete-section') {
+    const sectionId = Number(button.dataset.sectionId);
+    if (!confirm('¿Eliminar esta sección? Las tareas no se borran, solo dejan de estar agrupadas.')) return;
+    await fetch(`/api/sections/${sectionId}`, { method: 'DELETE' });
+    await refreshData();
   }
+});
+
+document.getElementById('addSectionForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('addSectionInput').value.trim();
+  if (!name || currentProjectId === null) return;
+  await fetch('/api/sections', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ projectId: currentProjectId, name }),
+  });
+  document.getElementById('addSectionModal').hidden = true;
+  await refreshData();
+});
+document.querySelector('[data-action="close-add-section"]').addEventListener('click', () => {
+  document.getElementById('addSectionModal').hidden = true;
 });
 
 document.getElementById('projectQuickAddForm').addEventListener('submit', (e) => {
@@ -435,6 +544,131 @@ function showAppShell() {
 document.getElementById('profileBtn').addEventListener('click', showSettings);
 settingsToggle.addEventListener('click', showSettings);
 settingsBack.addEventListener('click', showAppShell);
+
+// ==================== Filtros y Etiquetas ====================
+
+function uniqueLabelCounts() {
+  const counts = new Map();
+  allReminders
+    .filter((r) => r.status !== 'done')
+    .forEach((r) => (r.labels || []).forEach((l) => counts.set(l, (counts.get(l) || 0) + 1)));
+  return counts;
+}
+
+function renderSavedFiltersList() {
+  const el = document.getElementById('savedFiltersList');
+  if (allFilters.length === 0) {
+    el.innerHTML = '<div class="empty">Sin filtros guardados todavía</div>';
+    return;
+  }
+  el.innerHTML = allFilters
+    .map(
+      (f) => `
+      <div class="settings-row settings-row-clickable" data-action="open-filter" data-filter-id="${f.id}">
+        <span>${escapeHtml(f.name)}</span>
+        <button type="button" class="icon-button-sm" data-action="delete-filter" data-filter-id="${f.id}" aria-label="Eliminar filtro" title="Eliminar filtro">${ICONS.trash}</button>
+      </div>`
+    )
+    .join('');
+}
+
+function renderLabelsList() {
+  const counts = uniqueLabelCounts();
+  const labels = [...counts.keys()].sort();
+  const el = document.getElementById('labelsList');
+  if (labels.length === 0) {
+    el.innerHTML = '<div class="empty">Aún no has usado ninguna etiqueta (@etiqueta)</div>';
+    return;
+  }
+  el.innerHTML = labels
+    .map(
+      (l) => `
+      <button type="button" class="settings-row settings-row-clickable" data-action="open-label" data-label="${escapeHtml(l)}">
+        <span>@${escapeHtml(l)}</span>
+        <span class="project-card-count">${counts.get(l)}</span>
+      </button>`
+    )
+    .join('');
+}
+
+function showFiltersView() {
+  appShellEl.hidden = true;
+  document.getElementById('filtersView').hidden = false;
+  renderSavedFiltersList();
+  renderLabelsList();
+}
+
+function hideFiltersView() {
+  document.getElementById('filtersView').hidden = true;
+  appShellEl.hidden = false;
+}
+
+document.getElementById('filtersBack').addEventListener('click', hideFiltersView);
+
+document.getElementById('filtersView').addEventListener('click', async (e) => {
+  const btn = e.target.closest('[data-action]');
+  if (!btn) return;
+  const action = btn.dataset.action;
+
+  if (action === 'open-filter') {
+    const filter = allFilters.find((f) => f.id === Number(btn.dataset.filterId));
+    if (filter) applyAdvancedFilter(filter.criteria, filter.name);
+  } else if (action === 'delete-filter') {
+    if (!confirm('¿Eliminar este filtro guardado?')) return;
+    await fetch(`/api/filters/${btn.dataset.filterId}`, { method: 'DELETE' });
+    await refreshFilters();
+    renderSavedFiltersList();
+  } else if (action === 'open-label') {
+    applyAdvancedFilter({ label: btn.dataset.label, status: 'pending' }, `@${btn.dataset.label}`);
+  }
+});
+
+function populateNewFilterLabelSelect() {
+  const labels = [...uniqueLabelCounts().keys()].sort();
+  document.getElementById('newFilterLabel').innerHTML =
+    '<option value="">Cualquiera</option>' +
+    labels.map((l) => `<option value="${escapeHtml(l)}">@${escapeHtml(l)}</option>`).join('');
+}
+
+const newFilterModal = document.getElementById('newFilterModal');
+const newFilterPriorityEl = document.getElementById('newFilterPriority');
+
+document.getElementById('addFilterBtn').addEventListener('click', () => {
+  document.getElementById('newFilterName').value = '';
+  populateNewFilterLabelSelect();
+  document.getElementById('newFilterStatus').value = 'pending';
+  newFilterModal.dataset.priority = '0';
+  [...newFilterPriorityEl.children].forEach((b) => b.classList.toggle('active', b.dataset.priority === '0'));
+  newFilterModal.hidden = false;
+});
+document.querySelector('[data-action="close-new-filter"]').addEventListener('click', () => {
+  newFilterModal.hidden = true;
+});
+newFilterPriorityEl.addEventListener('click', (e) => {
+  const b = e.target.closest('.priority-pick');
+  if (!b) return;
+  newFilterModal.dataset.priority = b.dataset.priority;
+  [...newFilterPriorityEl.children].forEach((x) => x.classList.toggle('active', x === b));
+});
+document.getElementById('newFilterForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('newFilterName').value.trim();
+  if (!name) return;
+  const priority = Number(newFilterModal.dataset.priority || 0) || null;
+  const label = document.getElementById('newFilterLabel').value || null;
+  const status = document.getElementById('newFilterStatus').value;
+  const criteria = { status };
+  if (priority) criteria.priority = priority;
+  if (label) criteria.label = label;
+  await fetch('/api/filters', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, criteria }),
+  });
+  newFilterModal.hidden = true;
+  await refreshFilters();
+  renderSavedFiltersList();
+});
 
 // ==================== Google Calendar y Google Drive (activables por separado) ====================
 // Comparten una unica conexion OAuth, pero cada funcion se puede activar/desactivar por
@@ -968,7 +1202,6 @@ wireQuickAddHints(document.getElementById('projectQuickAddInput'), document.getE
 
 // ==================== Render de una fila de recordatorio ====================
 
-const editingIds = new Set();
 const expandedSubtaskIds = new Set();
 
 function formatDue(iso) {
@@ -1087,6 +1320,19 @@ function renderSubtasksEditHtml(r) {
     </div>`;
 }
 
+function sectionOptionsHtml(projectId, selectedSectionId) {
+  const sections = allSections.filter((s) => s.project_id === Number(projectId));
+  if (!projectId || sections.length === 0) return '';
+  const options = ['<option value="">Sin sección</option>']
+    .concat(
+      sections.map(
+        (s) => `<option value="${s.id}"${s.id === selectedSectionId ? ' selected' : ''}>${escapeHtml(s.name)}</option>`
+      )
+    )
+    .join('');
+  return `<select class="edit-section settings-select">${options}</select>`;
+}
+
 function renderReminderEdit(r) {
   const priority = r.priority || 4;
   const labelsValue = (r.labels || []).map((l) => `@${l}`).join(' ');
@@ -1116,6 +1362,7 @@ function renderReminderEdit(r) {
             .join('')}
         </div>
         <select class="edit-project">${projectOptions}</select>
+        <div class="edit-section-wrap">${sectionOptionsHtml(r.project_id, r.section_id)}</div>
         <input type="text" class="edit-labels" placeholder="@etiquetas" value="${escapeHtml(labelsValue)}" />
         <div class="edit-subtasks">
           ${renderSubtasksEditHtml(r)}
@@ -1128,12 +1375,59 @@ function renderReminderEdit(r) {
     </div>`;
 }
 
+document.body.addEventListener('change', (e) => {
+  const select = e.target.closest('.edit-project');
+  if (!select) return;
+  const wrap = select.closest('.reminder-edit-form')?.querySelector('.edit-section-wrap');
+  if (wrap) wrap.innerHTML = sectionOptionsHtml(select.value, null);
+});
+
+// ==================== Hoja de detalle de tarea (bottom sheet) ====================
+
+let openSheetId = null;
+
+function taskSheetContentHtml(r) {
+  const project = getProject(r.project_id);
+  const section = allSections.find((s) => s.id === r.section_id);
+  const crumbParts = [];
+  if (project) crumbParts.push(escapeHtml(project.name));
+  if (section) crumbParts.push(escapeHtml(section.name));
+  const breadcrumb = crumbParts.length
+    ? `<span class="sheet-breadcrumb">${ICONS.folder}${crumbParts.join(' / ')}</span>`
+    : `<span class="sheet-breadcrumb">${ICONS.inbox}Bandeja de entrada</span>`;
+
+  return `
+    <div class="sheet-header">
+      ${breadcrumb}
+      <button type="button" class="icon-button-sm" data-action="cancel-edit" aria-label="Cerrar" title="Cerrar">${ICONS.close}</button>
+    </div>
+    ${renderReminderEdit(r)}`;
+}
+
+function openTaskSheet(id) {
+  const reminder = allReminders.find((r) => r.id === id);
+  if (!reminder) return;
+  openSheetId = id;
+  document.getElementById('taskSheetBox').innerHTML = taskSheetContentHtml(reminder);
+  document.getElementById('taskSheetOverlay').hidden = false;
+}
+
+function closeTaskSheet() {
+  openSheetId = null;
+  document.getElementById('taskSheetOverlay').hidden = true;
+  document.getElementById('taskSheetBox').innerHTML = '';
+}
+
+document.getElementById('taskSheetOverlay').addEventListener('click', (e) => {
+  if (e.target.id === 'taskSheetOverlay') closeTaskSheet();
+});
+
 function renderList(el, items, emptyHtml) {
   if (items.length === 0) {
     el.innerHTML = emptyHtml;
     return;
   }
-  el.innerHTML = items.map((r) => (editingIds.has(r.id) ? renderReminderEdit(r) : renderReminderView(r))).join('');
+  el.innerHTML = items.map((r) => renderReminderView(r)).join('');
 }
 
 // Actualiza solo la lista de subtareas en el DOM tras una mutación, sin re-renderizar
@@ -1163,33 +1457,47 @@ async function refreshSubtasksInPlace(id, item) {
 let dragInfo = null;
 
 function findDragContext(row) {
-  if (row.closest('#inboxList')) return { type: 'reorder', container: document.getElementById('inboxList') };
-  if (row.closest('#projectTaskList')) return { type: 'reorder', container: document.getElementById('projectTaskList') };
-  if (row.closest('#upcomingDayList')) return { type: 'calendar', container: document.getElementById('upcomingDayList') };
+  if (row.closest('#inboxList')) {
+    const el = document.getElementById('inboxList');
+    return { type: 'reorder', container: el, root: el };
+  }
+  const projectRoot = document.getElementById('projectTaskList');
+  if (row.closest('#projectTaskList')) {
+    return { type: 'reorder', container: row.closest('.task-group') || projectRoot, root: projectRoot };
+  }
+  if (row.closest('#upcomingDayList')) {
+    const el = document.getElementById('upcomingDayList');
+    return { type: 'calendar', container: el, root: el };
+  }
   return null;
 }
 
 function onDragMove(e) {
   if (!dragInfo) return;
-  const { row, type, container, indicator, startX, startY } = dragInfo;
+  const { row, type, root, indicator, startX, startY } = dragInfo;
   const deltaY = e.clientY - startY;
 
   if (type === 'reorder') {
     row.style.transform = `translateY(${deltaY}px)`;
 
+    // Busca entre TODAS las filas del contenedor raiz (permite mover una tarea entre secciones).
     let insertBeforeEl = null;
-    for (const sib of container.querySelectorAll('.reminder-row')) {
+    let targetGroup = null;
+    for (const sib of root.querySelectorAll('.reminder-row')) {
       if (sib === row) continue;
       const rect = sib.getBoundingClientRect();
       if (e.clientY < rect.top + rect.height / 2) {
         insertBeforeEl = sib;
+        targetGroup = sib.closest('.task-group') || root;
         break;
       }
     }
     if (insertBeforeEl) {
-      container.insertBefore(indicator, insertBeforeEl);
+      targetGroup.insertBefore(indicator, insertBeforeEl);
     } else {
-      container.appendChild(indicator);
+      const groups = [...root.querySelectorAll('.task-group')];
+      targetGroup = groups.length ? groups[groups.length - 1] : root;
+      targetGroup.appendChild(indicator);
     }
   } else if (type === 'calendar') {
     const deltaX = e.clientX - startX;
@@ -1220,12 +1528,34 @@ async function onDragEnd(e) {
       indicator.parentElement.insertBefore(row, indicator);
       indicator.remove();
     }
-    const ids = [...container.querySelectorAll('.reminder-row')].map((el) => Number(el.dataset.id));
+    const finalGroup = row.closest('.task-group') || container;
+    const idsIn = (group) => [...group.querySelectorAll('.reminder-row')].map((el) => Number(el.dataset.id));
+
+    // Si la fila termino en una seccion distinta (o entro/salio de "sin seccion"), persiste el cambio.
+    if (finalGroup.closest('#projectTaskList')) {
+      const newSectionId = finalGroup.dataset.sectionId ? Number(finalGroup.dataset.sectionId) : null;
+      const reminder = allReminders.find((r) => r.id === id);
+      if (reminder && (reminder.section_id ?? null) !== newSectionId) {
+        await fetch(`/api/reminders/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sectionId: newSectionId }),
+        });
+      }
+    }
+
     await fetch('/api/reminders/reorder', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids }),
+      body: JSON.stringify({ ids: idsIn(finalGroup) }),
     });
+    if (finalGroup !== container) {
+      await fetch('/api/reminders/reorder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: idsIn(container) }),
+      });
+    }
     refreshData();
   } else if (type === 'calendar') {
     document.querySelectorAll('.cal-day.drop-target').forEach((el) => el.classList.remove('drop-target'));
@@ -1268,6 +1598,7 @@ document.body.addEventListener('pointerdown', (e) => {
     row,
     type: ctx.type,
     container: ctx.container,
+    root: ctx.root,
     pointerId: e.pointerId,
     startX: e.clientX,
     startY: e.clientY,
@@ -1284,16 +1615,10 @@ document.body.addEventListener('pointerdown', (e) => {
 document.body.addEventListener('click', async (e) => {
   const button = e.target.closest('button[data-action]');
   if (!button) {
-    // Clic en el cuerpo de la tarea (fuera de cualquier boton) abre edicion, como en Todoist.
+    // Clic en el cuerpo de la tarea (fuera de cualquier boton) abre el detalle, como en Todoist.
     const infoArea = e.target.closest('.reminder-info');
     const row = infoArea?.closest('.reminder-row');
-    if (row) {
-      const rowId = Number(row.dataset.id);
-      if (!editingIds.has(rowId)) {
-        editingIds.add(rowId);
-        renderCurrentPage();
-      }
-    }
+    if (row) openTaskSheet(Number(row.dataset.id));
     return;
   }
   const validActions = [
@@ -1330,11 +1655,9 @@ document.body.addEventListener('click', async (e) => {
     await fetch(`/api/reminders/${id}/uncomplete`, { method: 'POST' });
     refreshData();
   } else if (action === 'edit') {
-    editingIds.add(id);
-    renderCurrentPage();
+    openTaskSheet(id);
   } else if (action === 'cancel-edit') {
-    editingIds.delete(id);
-    renderCurrentPage();
+    closeTaskSheet();
   } else if (action === 'pick-priority') {
     const priority = Number(button.dataset.priority);
     item.dataset.priority = priority;
@@ -1393,6 +1716,8 @@ document.body.addEventListener('click', async (e) => {
     const labels = [...new Set([...labelsRaw.matchAll(/@?([\p{L}0-9_-]+)/gu)].map((m) => m[1].toLowerCase()))];
     const projectSelect = item.querySelector('.edit-project');
     const projectId = projectSelect.value ? Number(projectSelect.value) : null;
+    const sectionSelect = item.querySelector('.edit-section');
+    const sectionId = sectionSelect && sectionSelect.value ? Number(sectionSelect.value) : null;
     const description = item.querySelector('.edit-description').value.trim();
 
     await fetch(`/api/reminders/${id}`, {
@@ -1404,10 +1729,11 @@ document.body.addEventListener('click', async (e) => {
         priority,
         labels,
         projectId,
+        sectionId,
         description,
       }),
     });
-    editingIds.delete(id);
+    closeTaskSheet();
     refreshData();
   }
 });
@@ -1416,6 +1742,8 @@ document.body.addEventListener('click', async (e) => {
 
 let allReminders = [];
 let allProjects = [];
+let allSections = [];
+let allFilters = [];
 let currentPage = 'inbox';
 
 const DAY_BUCKETS = ['Hoy', 'Mañana', 'Esta semana', 'Más adelante'];
@@ -1541,6 +1869,8 @@ document.getElementById('calGrid').addEventListener('click', (e) => {
 
 let exploreFilter = 'all';
 let exploreProjectFilter = null;
+let exploreSubView = 'menu'; // 'menu' = menu tipo Todoist, 'search' = buscador con resultados
+let activeAdvancedFilter = null; // { name, criteria: { priority, label, status } }, viene de Filtros y Etiquetas
 const searchInput = document.getElementById('searchInput');
 const exploreFiltersEl = document.getElementById('exploreFilters');
 const exploreProjectFiltersEl = document.getElementById('exploreProjectFilters');
@@ -1557,12 +1887,65 @@ function renderExploreProjectFilters() {
   exploreProjectFiltersEl.innerHTML = allProjects.length > 0 ? pills.join('') : '';
 }
 
+function renderExploreMenu() {
+  const favorites = allProjects.filter((p) => p.is_favorite);
+  document.getElementById('exploreFavoritesSection').hidden = favorites.length === 0;
+  document.getElementById('exploreFavoritesList').innerHTML = favorites.map(projectRowHtml).join('');
+  document.getElementById('exploreProjectsList').innerHTML = allProjects.length
+    ? allProjects.map(projectRowHtml).join('')
+    : '<div class="empty">Aún no tienes proyectos</div>';
+}
+
+function showExploreSearch() {
+  exploreSubView = 'search';
+  document.getElementById('exploreMenuView').hidden = true;
+  document.getElementById('exploreSearchView').hidden = false;
+  renderExplore();
+}
+
+function showExploreMenu() {
+  exploreSubView = 'menu';
+  activeAdvancedFilter = null;
+  document.getElementById('exploreMenuView').hidden = false;
+  document.getElementById('exploreSearchView').hidden = true;
+  renderExploreMenu();
+}
+
+function applyAdvancedFilter(criteria, name) {
+  activeAdvancedFilter = { criteria, name };
+  hideFiltersView();
+  showExploreSearch();
+  switchPage('explore');
+}
+
 function renderExplore() {
   const q = searchInput.value.trim().toLowerCase();
   let items = allReminders;
-  if (exploreFilter === 'pending') items = items.filter((r) => r.status !== 'done');
-  else if (exploreFilter === 'done') items = items.filter((r) => r.status === 'done');
-  if (exploreProjectFilter !== null) items = items.filter((r) => r.project_id === exploreProjectFilter);
+
+  const banner = document.getElementById('activeFilterBanner');
+  if (activeAdvancedFilter) {
+    banner.hidden = false;
+    document.getElementById('activeFilterName').textContent = activeAdvancedFilter.name;
+    exploreFiltersEl.hidden = true;
+    exploreProjectFiltersEl.hidden = true;
+
+    const { priority, label, status } = activeAdvancedFilter.criteria;
+    if (status === 'pending') items = items.filter((r) => r.status !== 'done');
+    else if (status === 'done') items = items.filter((r) => r.status === 'done');
+    else if (status === 'overdue') {
+      items = items.filter((r) => r.status !== 'done' && r.due_at && new Date(r.due_at) < new Date());
+    }
+    if (priority) items = items.filter((r) => r.priority === priority);
+    if (label) items = items.filter((r) => (r.labels || []).includes(label));
+  } else {
+    banner.hidden = true;
+    exploreFiltersEl.hidden = false;
+    exploreProjectFiltersEl.hidden = false;
+    if (exploreFilter === 'pending') items = items.filter((r) => r.status !== 'done');
+    else if (exploreFilter === 'done') items = items.filter((r) => r.status === 'done');
+    if (exploreProjectFilter !== null) items = items.filter((r) => r.project_id === exploreProjectFilter);
+  }
+
   if (q) {
     items = items.filter(
       (r) => r.task.toLowerCase().includes(q) || (r.original_text || '').toLowerCase().includes(q)
@@ -1588,6 +1971,37 @@ exploreProjectFiltersEl.addEventListener('click', (e) => {
   renderExploreProjectFilters();
   renderExplore();
 });
+document.getElementById('activeFilterBanner').addEventListener('click', (e) => {
+  if (!e.target.closest('[data-action="clear-advanced-filter"]')) return;
+  activeAdvancedFilter = null;
+  renderExplore();
+});
+
+document.querySelector('section.app-page[data-page="explore"]').addEventListener('click', async (e) => {
+  const button = e.target.closest('[data-action]');
+  if (!button) return;
+  const action = button.dataset.action;
+
+  if (action === 'open-explore-search') {
+    showExploreSearch();
+  } else if (action === 'back-to-explore-menu') {
+    showExploreMenu();
+  } else if (action === 'open-filters-view') {
+    showFiltersView();
+  } else if (action === 'add-project') {
+    const name = prompt('Nombre del nuevo proyecto');
+    if (!name || !name.trim()) return;
+    await fetch('/api/projects', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name.trim() }),
+    });
+    await refreshData();
+  } else if (action === 'open-project') {
+    currentProjectId = Number(button.dataset.projectId);
+    switchPage('projects');
+  }
+});
 
 function renderCurrentPage() {
   if (currentPage === 'inbox') renderInbox();
@@ -1595,14 +2009,20 @@ function renderCurrentPage() {
   else if (currentPage === 'upcoming') {
     renderCalendar();
     renderUpcomingDayList();
-  } else if (currentPage === 'explore') renderExplore();
-  else if (currentPage === 'projects') renderProjectsPage();
+  } else if (currentPage === 'explore') {
+    if (exploreSubView === 'search') renderExplore();
+    else renderExploreMenu();
+  } else if (currentPage === 'projects') renderProjectsPage();
 
   updateHeaderCounts();
 }
 
 function switchPage(page) {
   currentPage = page;
+  if (page === 'explore' && exploreSubView === 'search' && document.getElementById('exploreSearchView').hidden) {
+    document.getElementById('exploreMenuView').hidden = true;
+    document.getElementById('exploreSearchView').hidden = false;
+  }
   document.querySelectorAll('.app-page').forEach((el) => {
     el.hidden = el.dataset.page !== page;
   });
@@ -1613,7 +2033,11 @@ function switchPage(page) {
 }
 
 document.querySelectorAll('.nav-item').forEach((btn) => {
-  btn.addEventListener('click', () => switchPage(btn.dataset.page));
+  btn.addEventListener('click', () => {
+    // Al entrar en Explorar desde la barra inferior siempre se ve el menu, nunca la busqueda anterior.
+    if (btn.dataset.page === 'explore') showExploreMenu();
+    switchPage(btn.dataset.page);
+  });
 });
 
 async function refreshProjects() {
@@ -1625,9 +2049,32 @@ async function refreshProjects() {
   }
 }
 
+async function refreshSections() {
+  try {
+    const res = await fetch('/api/sections');
+    allSections = await res.json();
+  } catch (err) {
+    allSections = [];
+  }
+}
+
+async function refreshFilters() {
+  try {
+    const res = await fetch('/api/filters');
+    allFilters = await res.json();
+  } catch (err) {
+    allFilters = [];
+  }
+}
+
 async function refreshData() {
   try {
-    const [reminders] = await Promise.all([fetch('/api/reminders').then((r) => r.json()), refreshProjects()]);
+    const [reminders] = await Promise.all([
+      fetch('/api/reminders').then((r) => r.json()),
+      refreshProjects(),
+      refreshSections(),
+      refreshFilters(),
+    ]);
     allReminders = reminders;
   } catch (err) {
     allReminders = [];

@@ -74,6 +74,29 @@ export async function init() {
   // Permite recordatorios sin fecha (bandeja de entrada).
   await pool.query(`ALTER TABLE reminders ALTER COLUMN due_at DROP NOT NULL`);
   await pool.query(`ALTER TABLE reminders ALTER COLUMN notify_at DROP NOT NULL`);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS sections (
+      id SERIAL PRIMARY KEY,
+      project_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS filters (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      criteria TEXT NOT NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    )
+  `);
+
+  await pool.query(`ALTER TABLE reminders ADD COLUMN IF NOT EXISTS section_id INTEGER`);
+  await pool.query(`ALTER TABLE projects ADD COLUMN IF NOT EXISTS is_favorite BOOLEAN NOT NULL DEFAULT false`);
 }
 
 function parseRow(row) {
@@ -133,17 +156,17 @@ export async function createProject({ name, color }) {
   return result.rows[0];
 }
 
-export async function updateProject(id, { name, color }) {
-  const result = await pool.query('UPDATE projects SET name = $1, color = $2 WHERE id = $3 RETURNING *', [
-    name,
-    color,
-    id,
-  ]);
+export async function updateProject(id, { name, color, isFavorite }) {
+  const result = await pool.query(
+    'UPDATE projects SET name = $1, color = $2, is_favorite = $3 WHERE id = $4 RETURNING *',
+    [name, color, Boolean(isFavorite), id]
+  );
   return result.rows[0];
 }
 
 export async function deleteProject(id) {
-  await pool.query('UPDATE reminders SET project_id = NULL WHERE project_id = $1', [id]);
+  await pool.query('UPDATE reminders SET project_id = NULL, section_id = NULL WHERE project_id = $1', [id]);
+  await pool.query('DELETE FROM sections WHERE project_id = $1', [id]);
   await pool.query('DELETE FROM projects WHERE id = $1', [id]);
 }
 
@@ -174,6 +197,89 @@ export async function updateSubtask(id, { text, done }) {
 
 export async function deleteSubtask(id) {
   await pool.query('DELETE FROM subtasks WHERE id = $1', [id]);
+}
+
+// --- Secciones ---
+
+export async function listSectionsByProject(projectId) {
+  const result = await pool.query('SELECT * FROM sections WHERE project_id = $1 ORDER BY sort_order ASC, id ASC', [
+    projectId,
+  ]);
+  return result.rows;
+}
+
+export async function listSections() {
+  const result = await pool.query('SELECT * FROM sections ORDER BY project_id ASC, sort_order ASC, id ASC');
+  return result.rows;
+}
+
+export async function getSectionById(id) {
+  const result = await pool.query('SELECT * FROM sections WHERE id = $1', [id]);
+  return result.rows[0];
+}
+
+export async function createSection(projectId, name) {
+  const countRes = await pool.query('SELECT COUNT(*)::int AS c FROM sections WHERE project_id = $1', [projectId]);
+  const result = await pool.query(
+    'INSERT INTO sections (project_id, name, sort_order) VALUES ($1, $2, $3) RETURNING *',
+    [projectId, name, countRes.rows[0].c]
+  );
+  return result.rows[0];
+}
+
+export async function updateSection(id, name) {
+  const result = await pool.query('UPDATE sections SET name = $1 WHERE id = $2 RETURNING *', [name, id]);
+  return result.rows[0];
+}
+
+export async function reorderSections(ids) {
+  for (let index = 0; index < ids.length; index++) {
+    await pool.query('UPDATE sections SET sort_order = $1 WHERE id = $2', [index, ids[index]]);
+  }
+}
+
+export async function deleteSection(id) {
+  await pool.query('UPDATE reminders SET section_id = NULL WHERE section_id = $1', [id]);
+  await pool.query('DELETE FROM sections WHERE id = $1', [id]);
+}
+
+// --- Filtros guardados ---
+
+function parseFilterRow(row) {
+  if (!row) return row;
+  return { ...row, criteria: JSON.parse(row.criteria) };
+}
+
+export async function listFilters() {
+  const result = await pool.query('SELECT * FROM filters ORDER BY sort_order ASC, id ASC');
+  return result.rows.map(parseFilterRow);
+}
+
+export async function getFilterById(id) {
+  const result = await pool.query('SELECT * FROM filters WHERE id = $1', [id]);
+  return parseFilterRow(result.rows[0]);
+}
+
+export async function createFilter(name, criteria) {
+  const countRes = await pool.query('SELECT COUNT(*)::int AS c FROM filters');
+  const result = await pool.query(
+    'INSERT INTO filters (name, criteria, sort_order) VALUES ($1, $2, $3) RETURNING *',
+    [name, JSON.stringify(criteria), countRes.rows[0].c]
+  );
+  return parseFilterRow(result.rows[0]);
+}
+
+export async function updateFilter(id, name, criteria) {
+  const result = await pool.query('UPDATE filters SET name = $1, criteria = $2 WHERE id = $3 RETURNING *', [
+    name,
+    JSON.stringify(criteria),
+    id,
+  ]);
+  return parseFilterRow(result.rows[0]);
+}
+
+export async function deleteFilter(id) {
+  await pool.query('DELETE FROM filters WHERE id = $1', [id]);
 }
 
 export async function saveGoogleAuth({ refreshToken }) {
@@ -228,11 +334,12 @@ export async function createReminder({
   labels,
   projectId,
   description,
+  sectionId,
 }) {
   const sortOrderRes = await pool.query('SELECT COALESCE(MAX(sort_order), 0) + 1 AS n FROM reminders');
   const result = await pool.query(
-    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description, sort_order)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11) RETURNING *`,
+    `INSERT INTO reminders (original_text, task, due_at, notify_at, recurrence, chat_id, priority, labels, project_id, description, sort_order, section_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12) RETURNING *`,
     [
       originalText,
       task,
@@ -245,6 +352,7 @@ export async function createReminder({
       projectId ?? null,
       description ?? null,
       sortOrderRes.rows[0].n,
+      sectionId ?? null,
     ]
   );
   return getReminderById(result.rows[0].id);
@@ -290,11 +398,11 @@ export async function setReminderStatus(id, status) {
   return getReminderById(id);
 }
 
-export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description }) {
+export async function updateReminder(id, { task, dueAt, notifyAt, priority, labels, projectId, description, sectionId }) {
   await pool.query(
     `UPDATE reminders
-     SET task = $1, due_at = $2, notify_at = $3, status = 'pending', priority = $4, labels = $5, project_id = $6, description = $7
-     WHERE id = $8`,
+     SET task = $1, due_at = $2, notify_at = $3, status = 'pending', priority = $4, labels = $5, project_id = $6, description = $7, section_id = $8
+     WHERE id = $9`,
     [
       task,
       dueAt ?? null,
@@ -303,6 +411,7 @@ export async function updateReminder(id, { task, dueAt, notifyAt, priority, labe
       JSON.stringify(labels ?? []),
       projectId ?? null,
       description ?? null,
+      sectionId ?? null,
       id,
     ]
   );
